@@ -821,6 +821,8 @@ BIF_RETTYPE spawn_opt_1(BIF_ALIST_1)
 	arg = CAR(list_val(ap));
 	if (arg == am_link) {
 	    so.flags |= SPO_LINK;
+	} else if (arg == am_shared) {
+	    so.flags |= SPO_SHARED;
 	} else if (arg == am_monitor) {
 	    so.flags |= SPO_MONITOR;
 	} else if (is_tuple(arg)) {

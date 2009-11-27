@@ -412,6 +412,47 @@ extern ErtsLcPSDLocks erts_psd_required_locks[ERTS_PSD_SIZE];
 
 #endif
 
+/* 
+ * process cluster
+ *
+ * - Each process has its own stack.
+ * - All processes share a main heap area
+ */
+
+typedef struct ErtsClusterSubHeap_ {
+    Eterm *hend;
+    Eterm *stop;
+    Eterm *htop;
+    Eterm *heap;
+    Uint heap_sz;
+    struct ErtsClusterSubHeap_ *next;
+    struct ErtsClusterSubHeap_ *next_avail;
+} ErtsClusterSubHeap;
+
+typedef struct {
+    erts_smp_spinlock_t lock; /* lock for all data in cluster */
+    Process *processes[256]; /* sorted container of processes */
+    Uint n; 
+    
+    /* main heap */
+    Eterm* hend;	/* Heap end */
+    Eterm* htop;	/* Heap end subheaps */
+    Eterm* heap;	/* Heap start */
+    Uint heap_sz;	/* Size of heap in words */
+
+    /* gen heap */
+    Eterm* high_water;
+    Eterm* old_heap;
+    Eterm* old_htop;
+    Eterm* old_hend;
+
+    /* sub heaps */
+    ErtsClusterSubHeap *sheap;
+    ErtsClusterSubHeap *tail;
+    ErtsClusterSubHeap *avail;
+} ErtsProcessCluster;
+
+
 #define ERTS_SCHED_STAT_MODIFY_DISABLE		1
 #define ERTS_SCHED_STAT_MODIFY_ENABLE		2
 #define ERTS_SCHED_STAT_MODIFY_CLEAR		3
@@ -618,6 +659,10 @@ struct process {
     struct hipe_process_state_smp hipe_smp;
 #endif
 #endif
+    /* Process Cluster */
+    
+    ErtsProcessCluster *cluster;
+    ErtsClusterSubHeap *sheap;
 
 #ifdef HYBRID
     Eterm *rrma;                /* Remembered roots to Message Area */
@@ -707,6 +752,7 @@ void erts_check_for_holes(Process* p);
 #define SPO_LINK 1
 #define SPO_USE_ARGS 2
 #define SPO_MONITOR 4
+#define SPO_SHARED 8
 
 /*
  * The following struct contains options for a process to be spawned.
@@ -1006,6 +1052,14 @@ void erts_debug_verify_clean_empty_process(Process* p);
 #endif
 void erts_stack_dump(int to, void *to_arg, Process *);
 void erts_program_counter_info(int to, void *to_arg, Process *);
+
+/* Process cluster */
+ErtsProcessCluster *erts_cluster_create(Process *p);
+void erts_cluster_delete(ErtsProcessCluster *c);
+void erts_cluster_add(ErtsProcessCluster *c, Process *p, int want);
+void erts_cluster_remove(ErtsProcessCluster *c, Process *p);
+ErtsClusterSubHeap *erts_cluster_sheap(ErtsProcessCluster *c, ErtsClusterSubHeap *isheap, int need, int want);
+int erts_cluster_is_connected(Process *p1, Process *p2);
 
 Eterm erts_get_process_priority(Process *p);
 Eterm erts_set_process_priority(Process *p, Eterm prio);

@@ -3590,6 +3590,51 @@ BIF_RETTYPE erts_debug_set_internal_state_2(BIF_ALIST_2)
     BIF_ERROR(BIF_P, BADARG);
 }
 
+/* Clustered shared heap */
+
+BIF_RETTYPE erts_debug_cluster_1(BIF_ALIST_1) {
+    if(is_internal_pid(BIF_ARG_1)) {
+	Process *rp;
+	ErtsProcessCluster *c;
+	int i;
+
+	Eterm *hp;
+	Eterm res = NIL;
+	Uint hsize = 0;
+
+	rp = erts_pid2proc(BIF_P, ERTS_PROC_LOCK_MAIN, BIF_ARG_1, 0);
+	if (!rp) 
+	    BIF_ERROR(BIF_P, BADARG);
+
+	if(!(rp->cluster))
+	    BIF_RET(am_undefined);
+       
+       	erts_smp_proc_unlock(BIF_P, ERTS_PROC_LOCK_MAIN);
+	erts_smp_block_system(0);
+
+	c = rp->cluster;
+	
+	i = c->n - 1;
+	while(i--) {
+	    res = erts_bld_cons( NULL, &hsize, c->processes[i]->id, res);
+	}
+	
+	hp = HAlloc(BIF_P, hsize);
+	res = NIL;
+
+	i = c->n - 1;
+	while(i--) {
+	    res = erts_bld_cons( &hp, NULL, c->processes[i]->id, res);
+	}
+	
+	erts_smp_release_system();
+	erts_smp_proc_lock(BIF_P, ERTS_PROC_LOCK_MAIN);
+	BIF_RET(res);
+    }
+    BIF_ERROR(BIF_P, BADARG);
+}
+
+
 #ifdef ERTS_ENABLE_LOCK_COUNT
 static Eterm lcnt_build_lock_stats_term(Eterm **hpp, Uint *szp, erts_lcnt_lock_stats_t *stats, Eterm res) {
     unsigned long tries = 0, colls = 0;

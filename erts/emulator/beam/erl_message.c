@@ -844,6 +844,7 @@ erts_send_message(Process* sender,
     BM_MESSAGE(message,sender,receiver);
     BM_START_TIMER(send);
 
+
     if (SEQ_TRACE_TOKEN(sender) != NIL && !(flags & ERTS_SND_FLG_NO_SEQ_TRACE)) {
         Eterm* hp;
 
@@ -897,7 +898,8 @@ erts_send_message(Process* sender,
 
          if (!IS_CONST(message))
             INC_ACTIVATE(receiver);
-#endif
+#endif /* INCREMENTAL*/
+	 
         LAZY_COPY(sender,message);
         BM_SWAP_TIMER(copy,send);
         ERL_MESSAGE_TERM(mp) = message;
@@ -917,7 +919,7 @@ erts_send_message(Process* sender,
 
         BM_SWAP_TIMER(send,system);
         return;
-#else
+#else /* !HYBRID */
     } else if (sender == receiver) {
 	/* Drop message if receiver has a pending exit ... */
 #ifdef ERTS_SMP
@@ -935,7 +937,7 @@ erts_send_message(Process* sender,
 	    }
 	}
 	if (!ERTS_PROC_PENDING_EXIT(receiver))
-#endif
+#endif /* ERTS_SMP */
 	{
 	    ErlMessage* mp = message_alloc();
 
@@ -960,6 +962,44 @@ erts_send_message(Process* sender,
 	    }
 	}
         BM_SWAP_TIMER(send,system);
+	return;
+    } else if (erts_cluster_is_connected(sender, receiver)) {
+#ifdef ERTS_SMP
+//	erts_printf("DUMP: msg %T and %T are clustered\n", sender->id, receiver->id);
+	BM_SWAP_TIMER(send,size);
+	BM_SWAP_TIMER(size,send);
+	BM_SWAP_TIMER(send,copy);
+	BM_MESSAGE_COPIED(msz);
+	BM_SWAP_TIMER(copy,send);
+	
+	/* just send the reference */
+	erts_queue_message(receiver, receiver_locks, NULL, message, token);
+	BM_SWAP_TIMER(send,system);
+#else
+	ErlMessage* mp = message_alloc();
+
+//	erts_printf("DUMP: msg %T and %T are clustered\n", sender->id, receiver->id);
+        BM_SWAP_TIMER(send,size);
+        BM_SWAP_TIMER(size,send);
+        BM_SWAP_TIMER(send,copy);
+	BM_MESSAGE_COPIED(msize);
+        BM_SWAP_TIMER(copy,send);
+	ERL_MESSAGE_TERM(mp) = message;
+	ERL_MESSAGE_TOKEN(mp) = NIL;
+	mp->next = NULL;
+	mp->data.attached = NULL;
+	LINK_MESSAGE(receiver, mp);
+
+	if (receiver->status == P_WAITING) {
+	    erts_add_to_runq(receiver);
+	} else if (receiver->status == P_SUSPENDED) {
+	    receiver->rstatus = P_RUNABLE;
+	}
+	if (IS_TRACED_FL(receiver, F_TRACE_RECEIVE)) {
+	    trace_receive(receiver, message);
+	}
+        BM_SWAP_TIMER(send,system);
+#endif /* #ifndef ERTS_SMP */
 	return;
     } else {
 #ifdef ERTS_SMP
@@ -1010,7 +1050,7 @@ erts_send_message(Process* sender,
         BM_SWAP_TIMER(send,system);
 #endif /* #ifndef ERTS_SMP */
 	return;
-#endif /* HYBRID */
+#endif /* !HYBRID */
     }
 }
 

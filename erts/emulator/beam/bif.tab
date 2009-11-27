@@ -667,6 +667,8 @@ bif 'erl.system.debug':dist_ext_to_term/2 ebif_erts_debug_dist_ext_to_term_2
 bif erts_debug:dump_monitors/1
 bif erts_debug:dump_links/1
 
+# Clustered heap
+bif erts_debug:cluster/1
 
 #
 # Lock counter bif's

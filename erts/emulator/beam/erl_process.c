@@ -6724,16 +6724,27 @@ erl_create_process(Process* parent, /* Parent of process (default group leader).
 #endif
 #endif
 
-    p->heap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP, sizeof(Eterm)*sz);
-    p->old_hend = p->old_htop = p->old_heap = NULL;
-    p->high_water = p->heap;
+    /* Process cluster */
+    p->cluster = NULL; 
+
+    if (so->flags & SPO_SHARED) {
+	if (!parent->cluster) {
+	    parent->cluster = erts_cluster_create(parent);
+	}
+	erts_cluster_add(parent->cluster, p, p->min_heap_size);
+    } else {
+	p->heap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP, sizeof(Eterm)*sz);
+	p->old_hend = p->old_htop = p->old_heap = NULL;
+	p->high_water = p->heap;
 #ifdef INCREMENTAL
-    p->scan_top = p->high_water;
+	p->scan_top = p->high_water;
 #endif
-    p->gen_gcs = 0;
-    p->stop = p->hend = p->heap + sz;
-    p->htop = p->heap;
-    p->heap_sz = sz;
+	p->gen_gcs = 0;
+	p->stop = p->hend = p->heap + sz;
+	p->htop = p->heap;
+	p->heap_sz = sz;
+    }
+
     p->catches = 0;
 
     p->bin_vheap_sz = H_MIN_SIZE;
@@ -6744,7 +6755,7 @@ erl_create_process(Process* parent, /* Parent of process (default group leader).
 
     p->current = p->initial+INITIAL_MOD;
 
-    p->i = (Eterm *) beam_apply;
+    p->i  = (Eterm *) beam_apply;
     p->cp = (Eterm *) beam_apply+1;
 
     p->arg_reg = p->def_arg_reg;
@@ -6763,7 +6774,14 @@ erl_create_process(Process* parent, /* Parent of process (default group leader).
 #endif
 #else
     BM_SWAP_TIMER(system,copy);
-    p->arg_reg[2] = copy_struct(args, arg_size, &p->htop, &p->off_heap);
+    
+    /* move to, within first if */
+
+    if (p->cluster) {
+    	p->arg_reg[2] = args;
+    } else {
+    	p->arg_reg[2] = copy_struct(args, arg_size, &p->htop, &p->off_heap);
+    }
     BM_MESSAGE_COPIED(arg_size);
     BM_SWAP_TIMER(copy,system);
 #endif
@@ -6792,10 +6810,15 @@ erl_create_process(Process* parent, /* Parent of process (default group leader).
 	p->group_leader = p->id;
     else {
 	/* Needs to be done after the heap has been set up */
-	p->group_leader =
-	    IS_CONST(parent->group_leader)
-	    ? parent->group_leader
-	    : STORE_NC(&p->htop, &p->off_heap.externals, parent->group_leader);
+	if (p->cluster) {
+	    /* use parent heap */
+	    p->group_leader = parent->group_leader;
+	} else {
+	    p->group_leader =
+		IS_CONST(parent->group_leader)
+		? parent->group_leader
+		: STORE_NC(&p->htop, &p->off_heap.externals, parent->group_leader);
+	}
     }
 
     erts_get_default_tracing(&p->trace_flags, &p->tracer_proc);
@@ -7014,6 +7037,7 @@ void erts_init_empty_process(Process *p)
     p->mbuf_sz = 0;
     p->psd = NULL;
     p->monitors = NULL;
+    p->cluster = NULL;
     p->nlinks = NULL;         /* List of links */
     p->nodes_monitors = NULL;
     p->suspend_monitors = NULL;
@@ -7120,6 +7144,7 @@ erts_debug_verify_clean_empty_process(Process* p)
     ASSERT(p->old_htop == NULL);
     ASSERT(p->old_heap == NULL);
 
+    ASSERT(p->cluster == NULL);
     ASSERT(p->monitors == NULL);
     ASSERT(p->nlinks == NULL);
     ASSERT(p->nodes_monitors == NULL);
@@ -7221,6 +7246,18 @@ delete_process(Process* p)
      * Release heaps. Clobber contents in DEBUG build.
      */
 
+    /* Process Cluster */
+        
+    if (p->cluster) {
+	erts_cluster_remove(p->cluster, p);
+	if (p->cluster->n == 0) {
+	    erts_cluster_delete(p->cluster);
+	}
+	p->cluster = NULL;
+	p->sheap   = NULL;
+    } else {
+
+
 
 #ifdef DEBUG
     sys_memset(p->heap, DEBUG_BAD_BYTE, p->heap_sz*sizeof(Eterm));
@@ -7240,6 +7277,8 @@ delete_process(Process* p)
 	ERTS_HEAP_FREE(ERTS_ALC_T_OLD_HEAP,
 		       p->old_heap,
 		       (p->old_hend-p->old_heap)*sizeof(Eterm));
+    }
+
     }
 
     /*
@@ -8307,6 +8346,277 @@ set_timer(Process* p, Uint timeout)
 		  (void*) p,
 		  timeout);
 #endif
+}
+
+/*
+ * Process cluster
+ */
+
+ErtsProcessCluster *erts_cluster_create(Process *p) {
+    ErtsProcessCluster *c;	    
+    ErtsClusterSubHeap *sheap;
+    
+    Uint stack_sz;
+    Uint heap_sz;
+    Uint avail_sz;
+    Uint sz;
+
+    erts_printf("DUMP: Creating cluster\n");
+    
+    c = erts_alloc(ERTS_ALC_T_CLUSTER, sizeof(ErtsProcessCluster));
+    erts_smp_spinlock_init(&c->lock, "cluster");
+
+    c->n    = 0;
+    c->heap = NULL;
+    c->htop = NULL;
+    c->hend = NULL;
+    c->old_heap = NULL;
+    c->old_hend = NULL;
+    c->old_htop = NULL;
+
+    c->avail = NULL;
+
+    /* allocate new stack */
+    /* move parent stack to allocated */
+    /* change stack pointers */
+    /* setup heap pointers from parent to cluster */
+    /* setup subheap within cluster */
+    /* set highwater mark to heap */
+
+    /* set all pointers from parent heap to cluster heap */
+
+    c->hend       = p->hend;
+    c->htop       = p->htop;
+    c->heap       = p->heap;
+    c->high_water = p->high_water;
+    c->old_heap   = p->old_heap;
+    c->old_htop   = p->old_htop;
+    c->old_hend   = p->old_hend;
+    c->heap_sz    = p->heap_sz;
+
+
+    stack_sz = STACK_START(p) - STACK_TOP(p);
+    heap_sz  = HEAP_TOP(p) - HEAP_START(p);
+    avail_sz = STACK_TOP(p) - HEAP_TOP(p);
+
+    erts_printf("DUMP: process %T becomes the cluster with %d stack, %d heap which leaves %d available\n", p->id, stack_sz, heap_sz, avail_sz);
+
+    /* create and set subheap */
+
+    sheap = erts_alloc(ERTS_ALC_T_CLUSTER, sizeof(ErtsClusterSubHeap));
+    
+    sheap->next_avail = NULL;
+    sheap->next = NULL;
+
+    c->sheap    = sheap;
+    c->tail     = sheap;
+    
+
+    /* should we compact ? */
+    sz = avail_sz / 2;
+
+    if (sz > 1) {
+	sys_memcpy((void*)c->heap + sz + heap_sz, p->stop, stack_sz*sizeof(Eterm));
+        sheap->hend    = c->hend - sz;
+	sheap->stop    = p->stop - sz;
+        sheap->htop    = c->htop;
+        sheap->heap    = c->heap;
+	c->htop = sheap->hend;
+	erts_printf("made %d size available for sheaps\n", sz);
+    } else {
+        sheap->hend = c->hend;
+	sheap->stop = p->stop;
+        sheap->htop = c->htop;
+        sheap->heap = c->heap;
+	c->htop = c->hend;
+	erts_printf("no size\n");
+    }
+	
+    sheap->heap_sz = sheap->hend - sheap->heap;
+
+    p->hend    = sheap->hend; 
+    p->stop    = sheap->stop;
+    p->htop    = sheap->htop;
+    p->heap    = sheap->heap;
+    p->heap_sz = sheap->heap_sz;
+
+    /* stack top and heap top must be reconsidered */ 
+
+    /* add process to cluster */
+    c->processes[0] = p;
+    c->n = 1;
+    p->cluster = c;
+    p->sheap   = sheap;
+ 
+    return c;
+}
+
+ErtsClusterSubHeap *erts_cluster_sheap(ErtsProcessCluster *c, ErtsClusterSubHeap *isheap, int need, int want) {
+    Uint sheap_sz;
+    Uint avail_sz;
+
+    ErtsClusterSubHeap *sheap = NULL;
+
+    erts_smp_spin_lock(&c->lock);
+
+    /* return available mem first */
+
+    if (!isheap && c->avail && (c->avail->hend - c->avail->htop > need)) {
+        erts_printf("DUMP: erts_cluster_sheap() (found a free one)\n");
+        sheap       = c->avail;
+	c->avail    = sheap->next_avail;
+	sheap->stop = sheap->hend; /* clear stack */
+	erts_smp_spin_unlock(&c->lock);
+
+	return sheap;
+    }
+    
+    avail_sz = c->hend - c->htop;
+    
+    if (avail_sz < need) {
+        erts_printf("DUMP: erts_cluster_sheap() (not found) (needed %d,  had %d)\n", need, avail_sz);
+        erts_smp_spin_unlock(&c->lock);
+	return NULL;
+    }
+
+    /* no in sheap */
+    if (!isheap) {
+         sheap = erts_alloc(ERTS_ALC_T_CLUSTER, sizeof(ErtsClusterSubHeap));
+	
+	/* put sheap in cluster list */
+
+	sheap->next = c->tail;
+	sheap->next_avail = NULL;
+	c->tail = sheap;
+    } else {
+	sheap = isheap;
+    }
+    
+    sheap_sz = want;
+
+    if (avail_sz < sheap_sz) {
+    	while(sheap_sz > avail_sz) sheap_sz = sheap_sz/2;
+    }
+
+    if (sheap_sz < need) {
+  	sheap_sz = need;
+    }
+
+    /* set mem pointers */
+    sheap->hend    = c->htop + sheap_sz;
+    sheap->stop    = sheap->hend;
+    sheap->htop    = c->htop;
+    sheap->heap    = c->htop;
+    sheap->heap_sz = sheap_sz;
+    c->htop = c->htop + sheap_sz;
+        
+    erts_printf("DUMP: erts_cluster_sheap() (allocating %d, wanted %d,  needed %d, had %d)\n", sheap_sz, want, need, avail_sz);
+        
+    erts_smp_spin_unlock(&c->lock);
+
+    return sheap;
+
+}
+
+void erts_cluster_delete(ErtsProcessCluster *c) {
+    ErtsClusterSubHeap *i, *sheap;
+
+    erts_printf("DUMP: erts_cluster_delete()\n");
+    i = c->sheap;
+    while(i) {
+        sheap = i;
+	i = i->next;
+        erts_free(ERTS_ALC_T_CLUSTER, sheap);
+    }
+
+    /* remove the main heap */
+
+    ERTS_HEAP_FREE(ERTS_ALC_T_HEAP, (void*) c->heap, c->heap_sz*sizeof(Eterm));
+    if (c->old_heap != NULL) {
+
+#ifdef DEBUG
+	sys_memset(c->old_heap, DEBUG_BAD_BYTE,
+                   (c->old_hend-c->old_heap)*sizeof(Eterm));
+#endif
+	ERTS_HEAP_FREE(ERTS_ALC_T_OLD_HEAP,
+		       c->old_heap,
+		       (c->old_hend-c->old_heap)*sizeof(Eterm));
+    }
+
+    erts_smp_spinlock_destroy(&c->lock);
+    erts_free(ERTS_ALC_T_CLUSTER, c);
+    c = NULL;
+}
+
+
+/*
+ * - add process to cluster
+ * - currently only on spawn
+ * - allocate a stack for this process
+ * - add a heap entry in the cluster
+ * - add process to process list
+ */
+
+void erts_cluster_add(ErtsProcessCluster *c, Process *p, int want) {
+    ErtsClusterSubHeap *sheap;
+
+    if (p->cluster && p->cluster != c) return;
+    
+    sheap = erts_cluster_sheap(c, NULL, 0, want);
+
+    p->hend = sheap->hend;
+    p->stop = sheap->stop;
+    p->htop = sheap->htop;
+    p->heap = sheap->heap;
+    
+    erts_smp_spin_lock(&c->lock);
+
+    c->processes[c->n] = p;
+    c->n++;
+    c->tail->next = sheap;
+    c->tail = sheap;
+    
+    erts_printf("DUMP: Added %T to cluster (%d processes in cluster)\n", p->id, c->n);
+
+    erts_smp_spin_unlock(&c->lock);
+
+    p->cluster = c;
+    p->sheap   = sheap;
+}
+
+void erts_cluster_remove(ErtsProcessCluster *c, Process *p) {
+    if (c && p->cluster == c) {
+	int i, n;
+	ErtsClusterSubHeap *sheap;
+    
+	erts_smp_spin_lock(&c->lock);
+	
+	n = c->n;
+	i = 0;
+	while(c->processes[i] != p && i < n) ++i;
+	while(i < n - 1) {
+	    c->processes[i] = c->processes[i + 1];
+	    i++;
+	}
+	c->processes[i] = NULL;
+	c->n--;
+
+	sheap = p->sheap;
+	
+	/* push sheap on free stack */
+	sheap->next_avail = c->avail;
+	c->avail = sheap;
+
+	erts_smp_spin_unlock(&c->lock);
+	erts_printf("DUMP: Removed %T from cluster, (%d processes in cluster)\n", p->id, c->n);
+    }
+}
+
+int erts_cluster_is_connected(Process *p1, Process *p2) {
+    if (p1->cluster && p1->cluster == p2->cluster) {
+	return 1;
+    }
+    return 0;
 }
 
 /*

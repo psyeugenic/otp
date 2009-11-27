@@ -238,6 +238,7 @@ type	DRV_MTX		DRIVER		SYSTEM		driver_mutex
 type	DRV_CND		DRIVER		SYSTEM		driver_cond
 type	DRV_RWLCK	DRIVER		SYSTEM		driver_rwlock
 type	DRV_TSD		DRIVER		SYSTEM		driver_tsd
+type	CLUSTER		STANDARD	PROCESSES	process_cluster_data
 type	PSD		STANDARD	PROCESSES	process_specific_data
 type	PRTSD		STANDARD	SYSTEM		port_specific_data
 type	CPUDATA		LONG_LIVED	SYSTEM		cpu_data

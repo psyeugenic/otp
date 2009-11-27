@@ -176,6 +176,7 @@ static erts_lc_lock_order_t erts_lock_order[] = {
     {	"alloc_thr_ix_lock",			NULL			},
 #ifdef ERTS_SMP
     {	"proc_lck_wtr_alloc",			NULL 			},
+    {   "cluster",				"address"		},
 #endif
 #ifdef __WIN32__
 #ifdef DEBUG

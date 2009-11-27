@@ -315,6 +315,7 @@ erts_gc_after_bif_call(Process* p, Eterm result, Eterm* regs, Uint arity)
 {
     int cost;
 
+    if (p->cluster) erts_printf("DUMP: erts_gc_after_bif_call(%T)\n", p->id);
     if (is_non_value(result)) {
 	if (p->freason == TRAP) {
 	    cost = erts_garbage_collect(p, 0, p->def_arg_reg, p->arity);
@@ -351,12 +352,58 @@ erts_garbage_collect(Process* p, int need, Eterm* objv, int nobj)
         trace_gc(p, am_gc_start);
     }
 
+    if (p->cluster) {
+        ErtsClusterSubHeap *sheap;
+	int sheap_want, sheap_need;
+        erts_printf("DUMP: erts_garbage_collect(%T)\n", p->id);
+
+	if (!MBUF(p)) {
+	    /* try to get a new sheap */
+
+	    sheap_need = need + (STACK_SZ_ON_HEAP(p)) + 1;
+	    sheap_want = erts_next_heap_size(sheap_need + (p->cluster->hend - p->cluster->htop)/2, 0);
+	    sheap      = erts_cluster_sheap(p->cluster, p->sheap, sheap_need, sheap_want); 
+
+	    if (sheap) {
+		Uint n;
+		Uint new_sz = sheap->heap_sz;
+
+		/* Copy stack to end of new heap */
+		n = p->hend - p->stop;
+		sys_memcpy(sheap->heap + new_sz - n, p->stop, n * sizeof(Eterm));
+
+		/* set pointers */
+		p->hend = sheap->hend;
+		p->stop = sheap->heap + new_sz - n;
+		p->htop = sheap->htop;
+		p->heap = sheap->heap;
+
+	    }
+
+	    return ((int) (HEAP_TOP(p) - HEAP_START(p)) / 10);
+	}
+
+	/* use this process as global heap */
+	/* reset all pointers */
+
+	p->hend       = p->cluster->hend;
+	p->htop       = p->cluster->htop;
+	p->heap       = p->cluster->heap;
+	p->high_water = p->cluster->high_water;
+	p->old_heap   = p->cluster->old_heap;
+	p->old_htop   = p->cluster->old_htop;
+	p->old_hend   = p->cluster->old_hend;
+	p->heap_sz    = p->cluster->heap_sz;
+    }
+
     erts_smp_proc_lock(p, ERTS_PROC_LOCK_STATUS);
     p->gcstatus = p->status;
     p->status = P_GARBING;
+    
     if (erts_system_monitor_long_gc != 0) {
 	get_now(&ms1, &s1, &us1);
     }
+    
     erts_smp_proc_unlock(p, ERTS_PROC_LOCK_STATUS);
 
     erts_smp_locked_activity_begin(ERTS_ACTIVITY_GC);
@@ -440,8 +487,19 @@ erts_garbage_collect(Process* p, int need, Eterm* objv, int nobj)
      * (We will not detect wild writes into the old heap, or modifications
      * of the old heap in-between garbage collections.)
      */
-    p->last_old_htop = p->old_htop;
 #endif
+
+    if (p->cluster) {
+        ErtsProcessCluster *c = p->cluster;
+	c->hend       = p->hend;
+	c->htop       = p->htop;
+	c->heap       = p->heap;
+	c->high_water = p->high_water;
+	c->old_heap   = p->old_heap;
+	c->old_htop   = p->old_htop;
+	c->old_hend   = p->old_hend;
+	c->heap_sz    = p->heap_sz;
+    }
 
     return ((int) (HEAP_TOP(p) - HEAP_START(p)) / 10);
 }
@@ -465,6 +523,7 @@ erts_garbage_collect_hibernate(Process* p)
     Uint area_size;
     Sint offs;
 
+    if (p->cluster) erts_printf("DUMP: erts_garbage_collect_hibernate(%T)\n", p->id);
     /*
      * Preliminaries.
      */
@@ -607,6 +666,7 @@ erts_garbage_collect_literals(Process* p, Eterm* literals, Uint lit_size)
     Eterm* old_htop;
     int n;
 
+    if (p->cluster) erts_printf("DUMP: erts_garbage_collect_literals(%T)\n", p->id);
     /*
      * Set GC state.
      */
@@ -720,11 +780,53 @@ erts_garbage_collect_literals(Process* p, Eterm* literals, Uint lit_size)
     erts_smp_locked_activity_end(ERTS_ACTIVITY_GC);
 }
 
+static Uint calculate_fragments_size(Process *p) {
+    if (p->cluster) {
+        ErtsProcessCluster *c;
+        Uint fragments = 0;
+	Uint i = 0;
+	Process *ip;
+	
+	c = p->cluster;
+
+	while( i < c->n) {
+	    ip = c->processes[i];
+	    fragments += MBUF_SIZE(ip) + combined_message_size(ip);
+	}
+
+	return fragments;
+    }
+    	
+    return MBUF_SIZE(p) + combined_message_size(p);
+}
+
+static Uint calculate_stack_size(Process *p) {
+   if (p->cluster) {
+	ErtsProcessCluster *c;
+	ErtsClusterSubHeap *sheap;
+   	Uint stack_sz = 0;
+	Uint i = 0;
+	
+	c = p->cluster;
+
+	while( i < c->n) {
+	    sheap     = c->processes[i]->sheap;
+	    stack_sz += STACK_SZ_ON_HEAP(sheap);
+	    ++i;
+	}
+
+	return stack_sz;
+    }
+   
+    return STACK_SZ_ON_HEAP(p);
+}
+
 static int
 minor_collection(Process* p, int need, Eterm* objv, int nobj, Uint *recl)
 {
     Uint mature = HIGH_WATER(p) - HEAP_START(p);
 
+    if (p->cluster) erts_printf("DUMP: minor_collection\n");
     /*
      * Allocate an old heap if we don't have one and if we'll need one.
      */
@@ -756,8 +858,8 @@ minor_collection(Process* p, int need, Eterm* objv, int nobj, Uint *recl)
 	ErlMessage *msgp;
 	Uint size_after;
 	Uint need_after;
-	Uint stack_size = STACK_SZ_ON_HEAP(p);
-	Uint fragments = MBUF_SIZE(p) + combined_message_size(p);
+	Uint stack_size  = calculate_stack_size(p);
+	Uint fragments   = calculate_fragments_size(p);
 	Uint size_before = fragments + (HEAP_TOP(p) - HEAP_START(p));
 	Uint new_sz = next_heap_size(p, HEAP_SIZE(p) + fragments, 0);
 
@@ -766,7 +868,9 @@ minor_collection(Process* p, int need, Eterm* objv, int nobj, Uint *recl)
 	/*
 	 * Copy newly received message onto the end of the new heap.
 	 */
+	
 	ErtsGcQuickSanityCheck(p);
+	
 	for (msgp = p->msg.first; msgp; msgp = msgp->next) {
 	    if (msgp->data.attached) {
 		erts_move_msg_attached_data_to_heap(&p->htop, &p->off_heap, msgp);
@@ -889,8 +993,7 @@ do_minor(Process *p, int new_sz, Eterm* objv, int nobj)
     Eterm* old_htop = OLD_HTOP(p);
     Eterm* n_heap;
 
-    n_htop = n_heap = (Eterm*) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP,
-					       sizeof(Eterm)*new_sz);
+    n_htop = n_heap = (Eterm*) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP, sizeof(Eterm)*new_sz);
 
     if (MBUF(p) != NULL) {
 	n_htop = collect_heap_frags(p, n_heap, n_htop, objv, nobj);
@@ -1154,7 +1257,7 @@ major_collection(Process* p, int need, Eterm* objv, int nobj, Uint *recl)
 	    Eterm* ptr;
 	    Eterm val;
 	    Eterm gval = *g_ptr;
-	    
+
 	    switch (primary_tag(gval)) {
 
 	    case TAG_PRIMARY_BOXED: {
@@ -1191,6 +1294,7 @@ major_collection(Process* p, int need, Eterm* objv, int nobj, Uint *recl)
 	    }
 	}
     }
+	    
 
     cleanup_rootset(&rootset);
 
@@ -1824,7 +1928,7 @@ sweep_one_heap(Eterm* heap_ptr, Eterm* heap_end, Eterm* htop, char* src, Uint sr
  */
 
 static Eterm*
-collect_heap_frags(Process* p, Eterm* n_hstart, Eterm* n_htop,
+do_collect_heap_frags(Process* p, Eterm* n_hstart, Eterm* n_htop,
 		   Eterm* objv, int nobj)
 {
     ErlHeapFragment* qb;
@@ -1902,6 +2006,27 @@ collect_heap_frags(Process* p, Eterm* n_hstart, Eterm* n_htop,
 	qb = qb->next;
     }
     return n_htop;
+}
+
+static Eterm*
+collect_heap_frags(Process* p, Eterm* n_hstart, Eterm* n_htop,
+		   Eterm* objv, int nobj)
+{
+    if (p->cluster) {
+    	ErtsProcessCluster *c = p->cluster;
+	int i = 1;
+	
+	n_htop = do_collect_heap_frags(c->processes[0], n_hstart, n_htop, objv, nobj);
+
+	while(i < c->n) {
+	    n_htop = do_collect_heap_frags(c->processes[i], n_hstart, n_htop, NULL, 0);
+	    ++i;
+	}
+
+	return n_htop;
+    }
+	
+    return do_collect_heap_frags(p, n_hstart, n_htop, objv, nobj);
 }
 
 static Uint
@@ -1994,6 +2119,57 @@ setup_rootset(Process *p, Eterm *objv, int nobj, Rootset *rootset)
     }
     rootset->roots = roots;
     rootset->num_roots = n;
+
+    avail = rootset->size - n;
+
+    if (0) {
+    //if (p->cluster) {
+	Process *ip;
+	int i;
+	
+	/* lock all the cluster */
+	
+	i = p->cluster->n - 1;
+	
+	while (i--) {
+	    ip = p->cluster->processes[i];
+	    if (ip == p) continue;
+		
+	    /* for each process we want registers, stack and heap */
+	    if (avail < 3) { 
+		Uint new_size = 2*rootset->size; /* double the previous size */
+		if (roots == rootset->def) {
+		    roots = erts_alloc(ERTS_ALC_T_ROOTSET, new_size*sizeof(Roots));
+		    sys_memcpy(roots, rootset->def, sizeof(rootset->def));
+		} else {
+		    roots = erts_realloc(ERTS_ALC_T_ROOTSET, (void *) roots, new_size*sizeof(Roots));
+		}
+		
+		rootset->size = new_size;
+		avail = new_size - n;
+	    }
+
+	    /* registers */
+	    if (ip->arity > 0) {
+		roots[n].v  = ip->arg_reg;
+		roots[n].sz = ip->arity;
+		++n;
+		--avail;
+	    }
+
+	    /* stack */
+	    if (ip->hend - ip->stop > 0) {
+		roots[n].v  = ip->stop;
+		roots[n].sz = STACK_START(ip) - ip->stop;
+		++n;
+		--avail;
+	    }
+	}
+    }
+    
+    rootset->roots = roots;
+    rootset->num_roots = n;
+    
     return n;
 }
 
