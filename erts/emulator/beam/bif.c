@@ -2497,12 +2497,13 @@ BIF_RETTYPE insert_element_3(BIF_ALIST_3)
     ptr = tuple_val(BIF_ARG_2);
     arity = arityval(*ptr);
     ix = signed_val(BIF_ARG_1);
-    if (ix < 1 || ix > arity+1) {
+    if ((ix < 1) || ((ix > (arity+1)) && (arity > 0))) {
 	BIF_ERROR(BIF_P, BADARG);
     }
     hp = HAlloc(BIF_P, arity + 2);
     res = make_tuple(hp);
     *hp = make_arityval(arity+1);
+    /* in arity 0 case, just add the element */
     ix--;
     arity -= ix;
     while (ix--) {
