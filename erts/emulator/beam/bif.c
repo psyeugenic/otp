@@ -2468,6 +2468,20 @@ BIF_RETTYPE append_element_2(BIF_ALIST_2)
     *++hp = BIF_ARG_2;
     BIF_RET(res);
 }
+BIF_RETTYPE bitcount_1(BIF_ALIST_1)
+{
+    Uint ix;
+    if (is_not_small(BIF_ARG_1)) {
+	BIF_ERROR(BIF_P, BADARG);
+    }
+    ix = unsigned_val(BIF_ARG_1);
+
+#if 1 /* check wordsize */
+    return make_small(__builtin_popcountl(ix));
+#else
+    return make_small(__builtin_popcount(ix));
+#endif
+}
 
 BIF_RETTYPE insert_element_3(BIF_ALIST_3)
 {
