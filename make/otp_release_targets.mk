@@ -100,6 +100,8 @@ local_copy_of_topdefs:
 	 	$(DOCGEN)/priv/js/flipmenu/flip_open.gif \
 		$(DOCGEN)/priv/js/flipmenu/flip_static.gif \
 		$(DOCGEN)/priv/js/flipmenu/flipmenu.js $(HTMLDIR)/js/flipmenu
+	$(INSTALL_DIR) $(HTMLDIR)/js/highlight
+		$(DOCGEN)/priv/js/hightlight/highlight.pack.js $(HTMLDIR)/js/highlight
 
 endif
 

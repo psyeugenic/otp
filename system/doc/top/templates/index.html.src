@@ -24,6 +24,7 @@ under the License.
   <title>Erlang/OTP #release#</title>
 
 <script id="js" type="text/javascript" language="JavaScript" src="js/flipmenu/flipmenu.js">
+<script id="js" type="text/javascript" language="JavaScript" src="js/highlight/highlight.pack.js">
 
 </script>
 </head> 
