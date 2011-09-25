@@ -553,6 +553,7 @@
     <html>
       <head>
         <link rel="stylesheet" href="{$topdocdir}/otp_doc.css" type="text/css"/>
+        <link rel="stylesheet" href="{$topdocdir}/github.css" type="text/css"/>
         <title>Erlang -- <xsl:value-of select="header/title"/></title>
       </head>
       <body bgcolor="white" text="#000000" link="#0000ff" vlink="#ff00ff" alink="#ff0000">
@@ -599,6 +600,11 @@
 
              addEvent(window, 'load', setscrollpos);
 
+             //-->]]></xsl:text>
+            <xsl:text disable-output-escaping="yes"><![CDATA[
+            <!--
+	    hljs.tabReplace = '    ';
+	    hljs.initHighlightingOnLoad();
              //-->]]></xsl:text>
           </script>
           <!-- Generate menu -->
@@ -2013,6 +2019,7 @@
     <html>
       <head>
         <link rel="stylesheet" href="{$topdocdir}/otp_doc.css" type="text/css"/>
+        <link rel="stylesheet" href="{$topdocdir}/github.css" type="text/css"/>
         <title>Erlang Documentation -- <xsl:value-of select="header/title"/></title>
       </head>
       <body bgcolor="white" text="#000000" link="#0000ff" vlink="#ff00ff" alink="#ff0000">
@@ -2069,6 +2076,7 @@
     <html>
       <head>
         <link rel="stylesheet" href="{$topdocdir}/otp_doc.css" type="text/css"/>
+        <link rel="stylesheet" href="{$topdocdir}/github.css" type="text/css"/>
         <title>Erlang Documentation -- <xsl:value-of select="header/title"/></title>
       </head>
       <body bgcolor="white" text="#000000" link="#0000ff" vlink="#ff00ff" alink="#ff0000">
