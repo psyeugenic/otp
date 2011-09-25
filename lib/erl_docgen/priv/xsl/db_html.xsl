@@ -923,7 +923,7 @@
   </xsl:template>
 
   <xsl:template match="c">
-    <span class="code"><xsl:apply-templates/></span>
+    <code class="erlang_repl"><xsl:apply-templates/></code>
   </xsl:template>
 
   <xsl:template match="em">

@@ -81,17 +81,17 @@ parse(InDev, OutDev, CPath, Mp) ->
 	     {match,[File, []]} ->  
 		 case file:read_file(filename:join(CPath, File))of
 		     {ok, Bin} ->
-			 file:write(OutDev, "<code>\n<![CDATA[\n"),
+			 file:write(OutDev, "<pre class=\"erlang\"><code>\n<![CDATA[\n"),
 			 file:write(OutDev, Bin),
-			 file:write(OutDev, "]]></code>");
+			 file:write(OutDev, "]]></code></pre>");
 		     _ ->
 			 halt(3) 
 		 end;
 	     {match,[File, Tag]} ->
 		 String2 = get_code(filename:join(CPath, File), Tag),
-		 file:write(OutDev, "<code>\n<![CDATA[\n"),
+		 file:write(OutDev, "<pre class=\"erlang\"><code>\n<![CDATA[\n"),
 		 file:write(OutDev, String2),
-		 file:write(OutDev, "]]></code>");
+		 file:write(OutDev, "]]></code></pre>");
 		_ -> 
 		    file:write(OutDev, String)		    
 	    end,
