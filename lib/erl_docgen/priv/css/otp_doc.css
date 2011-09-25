@@ -1,111 +1,168 @@
-
-
-body          { 
-  background: white;
-  font-family: Verdana, Arial, Helvetica, sans-serif;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  overflow: scroll;
-  height: 100%;
-  max-height: 100%;
+body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    background: #FFF;
+    color: #000;
+    margin: 0px;
+    font-size: 0.82em;
+    line-height: 1.25em;
 }
 
+a:link, a:active, a:visited, a:hover {
+    color: #980905;
+    text-decoration: none;
+}
 
-th            { font-family: Verdana, Arial, Helvetica, sans-serif }
-td            { font-family: Verdana, Arial, Helvetica, sans-serif }
-p             { font-family: Verdana, Arial, Helvetica, sans-serif }
+a:hover, .banner a:hover {
+    color: #333;
+    background: #FE8;
+}
 
-.header       { background: #222; color: #fff }
-.top          { background: #efe }
-.otp          { background: #efe }
-.erlang       { background: #ffe }
-.otp2         { background: #efe }
-.app          { background: #ffe }
+h1 a, h2 a, .banner a {
+    color: #fff;
+}
 
-a:link         { color: blue; text-decoration: none }
-a:active       { color: blue; text-decoration: none }
-a:visited      { color: blue; text-decoration: none }
+h1 a:hover, h2 a:hover {
+    color: #fff;
+}
 
-#container {
-  width: 100%;
-  margin: 0;
-  background-color: #fff;
+p {
+    margin-bottom: 1em;
+}
+
+h1 {
+    font-size: 2.1em;
+    font-weight: normal;
+    line-height: 1.2em;
+    margin: 1.4em 0 0.7em 0;
+}
+
+h2 {
+    font-size: 1.6em;
+    margin: 1.8em 0 0.8em 0;
+    font-weight: normal;
+    line-height: 1.2em;
+  }
+
+  h3 {
+      font-size: 1.4em;
+      color:#555;
+      margin: 1.4em 0 0.7em 0;
+      font-weight: normal;
+  }
+
+  h4 {
+      margin: 1.4em 0 0.5em 0;
+      font-size: 1em;
+  }
+
+  table
+  {
+      margin-bottom: 1em;
+  }
+
+  td, th
+  {
+      padding: 0 0.7em 0.3em 0;
+  }
+
+  th
+  {
+      font-weight: bold;
+  }
+
+
+
+  .header       { background: #222; color: #fff }
+  .top          { background: #efe }
+  .otp          { background: #efe }
+  .otp2         { background: #efe }
+  .app          { background: #ffe }
+
+  #container {
+      width: 100%;
+      margin: 0;
+      background: fff;
 }
 
 
 #leftnav  {
-  position: fixed;
-  float: left;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 200px;
-  overflow:auto;
-  margin: 0;
-  padding: 1px;
-  border-right: 1px solid red;
+    position: fixed;
+    float: left;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 250;
+    overflow:auto;
+    margin: 0;
+    padding: 1px;
+    border-right: 1px solid red;
 }
 
 
 #content   {
-  margin-left: 240px; /* set left value to WidthOfFrameDiv */
+    margin-left: 300px; /* set left value to WidthOfFrameDiv */
+    max-width: 790px;
 }
 
 .frontpage 
 {
-  padding-top: 50px; /* Magins for inner DIV inside each DIV (to provide padding) */
+    padding-top: 50px; /* Magins for inner DIV inside each DIV (to provide padding) */
 }
 
 
 .innertube 
 {
-  margin: 15px; /* Magins for inner DIV inside each DIV (to provide padding) */
+    margin: 15px; /* Magins for inner DIV inside each DIV (to provide padding) */
 }
 
 .footer 
 {
-  margin: 15px; /* Magins for inner DIV inside each DIV (to provide padding) */
+    margin: 15px; /* Magins for inner DIV inside each DIV (to provide padding) */
 
 }
-span.bold_code        { font-family: courier;font-weight: bold}
+span.bold_code   { font-family: courier;font-weight: bold}
 span.code        { font-family: courier;font-weight: normal}
 
+p {
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
 .note, .warning {
-  border: solid black 1px;
-  margin: 1em 3em;
+    border: solid black 1px;
+    margin: 1em 3em;
 }
 
 .note .label {
-  background: #30d42a;
-  color: white;
-  font-weight: bold;
-  padding: 5px 10px;
+    background: #30d42a;
+    color: white;
+    font-weight: bold;
+    padding: 5px 10px;
 }
 .note .content {
-  background: #eafeea;
-  color: black;
-  line-height: 120%;
-  font-size: 90%;
-  padding: 5px 10px;
+    background: #eafeea;
+    color: black;
+    line-height: 120%;
+    font-size: 90%;
+    padding: 5px 10px;
 }
 .warning .label {
-  background: #C00;
-  color: white;
-  font-weight: bold;
-  padding: 5px 10px;
+    background: #C00;
+    color: white;
+    font-weight: bold;
+    padding: 5px 10px;
 }
 .warning .content {
-  background: #FFF0F0;
-  color: black;
-  line-height: 120%;
-  font-size: 90%;
-  padding: 5px 10px;
+    background: #FFF0F0;
+    color: black;
+    line-height: 120%;
+    font-size: 90%;
+    padding: 5px 10px;
 }
 
 .example     { 
-  background-color:#eeeeff;
-  padding: 0px 10px;
+    background-color:#eeeeff;
+    padding: 0px 10px;
 } 
 
 pre          { font-family: courier; font-weight: normal }
