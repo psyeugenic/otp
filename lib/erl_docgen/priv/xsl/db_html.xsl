@@ -936,7 +936,7 @@
     <xsl:variable name="codenum">
       <xsl:number level="any" from="chapter" count="code"/>
     </xsl:variable>
-    <div class="example"><pre><xsl:apply-templates/></pre></div>
+    <pre class="erlang"><code><xsl:apply-templates/></code></pre>
   </xsl:template>
 
   <!-- Pre -->
@@ -945,7 +945,7 @@
     <xsl:variable name="codenum">
       <xsl:number level="any" from="chapter" count="code"/>
     </xsl:variable>
-    <div class="example"><pre><xsl:apply-templates/></pre></div>
+    <pre class="erlang"><code><xsl:apply-templates/></code></pre>
   </xsl:template>
 
 
