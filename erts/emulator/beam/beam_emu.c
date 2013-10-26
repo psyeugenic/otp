@@ -1384,6 +1384,19 @@ void process_main(void)
     }
     Next(1);
 
+/* comp exact instructions */
+ OpCase(i_is_lt_exact_f):
+    if (CMP_GE_EXACT(tmp_arg1, tmp_arg2)) {
+	ClauseFail();
+    }
+    Next(1);
+
+ OpCase(i_is_ge_exact_f):
+    if (CMP_LT_EXACT(tmp_arg1, tmp_arg2)) {
+	ClauseFail();
+    }
+    Next(1);
+
  OpCase(i_is_eq_f):
     if (CMP_NE(tmp_arg1, tmp_arg2)) {
 	ClauseFail();

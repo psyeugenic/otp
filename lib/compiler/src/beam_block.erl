@@ -411,9 +411,13 @@ inverse_comp_op('=/=') -> '=:=';
 inverse_comp_op('==') -> '/=';
 inverse_comp_op('/=') -> '==';
 inverse_comp_op('>') -> '=<';
+inverse_comp_op('>:>') -> '=:<';
 inverse_comp_op('<') -> '>=';
+inverse_comp_op('<:<') -> '>:=';
 inverse_comp_op('>=') -> '<';
+inverse_comp_op('>:=') -> '<:<';
 inverse_comp_op('=<') -> '>';
+inverse_comp_op('=:<') -> '>:>';
 inverse_comp_op(_) -> none.
 
 %%%

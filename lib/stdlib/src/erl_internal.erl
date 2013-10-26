@@ -181,6 +181,10 @@ comp_op('>=', 2) -> true;
 comp_op('>', 2) -> true;
 comp_op('=:=', 2) -> true;
 comp_op('=/=', 2) -> true;
+comp_op('=:<', 2) -> true;
+comp_op('<:<', 2) -> true;
+comp_op('>:=', 2) -> true;
+comp_op('>:>', 2) -> true;
 comp_op(Op, A) when is_atom(Op), is_integer(A) -> false.
 
 -spec list_op(OpName, Arity) -> boolean() when
@@ -227,6 +231,10 @@ op_type('=<', 2) -> comp;
 op_type('<', 2) -> comp;
 op_type('>=', 2) -> comp;
 op_type('>', 2) -> comp;
+op_type('=:<', 2) -> comp;
+op_type('<:<', 2) -> comp;
+op_type('>:=', 2) -> comp;
+op_type('>:>', 2) -> comp;
 op_type('=:=', 2) -> comp;
 op_type('=/=', 2) -> comp;
 op_type('++', 2) -> list;

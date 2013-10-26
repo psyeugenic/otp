@@ -105,6 +105,30 @@ BIF_RETTYPE sle_2(BIF_ALIST_2)
     BIF_RET(cmp_le(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
 }
 
+/* begin <:< >:> =:< >:= */
+
+BIF_RETTYPE sgt_exact_2(BIF_ALIST_2)
+{
+    BIF_RET(cmp_gt_exact(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
+}
+
+BIF_RETTYPE sge_exact_2(BIF_ALIST_2)
+{
+    BIF_RET(cmp_ge_exact(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
+}
+
+BIF_RETTYPE slt_exact_2(BIF_ALIST_2)
+{
+    BIF_RET(cmp_lt_exact(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
+}
+
+BIF_RETTYPE sle_exact_2(BIF_ALIST_2)
+{
+    BIF_RET(cmp_le_exact(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
+}
+
+/* end new rel ops */
+
 BIF_RETTYPE seq_2(BIF_ALIST_2)
 {
     BIF_RET(eq(BIF_ARG_1, BIF_ARG_2) ? am_true : am_false);
