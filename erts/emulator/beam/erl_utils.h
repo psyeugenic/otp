@@ -202,12 +202,17 @@ int eq(Eterm, Eterm);
 #define EQ(x,y) (((x) == (y)) || (is_not_both_immed((x),(y)) && eq((x),(y))))
 
 #if HALFWORD_HEAP
-Sint cmp_rel(Eterm, Eterm*, Eterm, Eterm*);
-#define CMP(A,B) cmp_rel(A,NULL,B,NULL)
+Sint cmp_rel_opt(Eterm, Eterm*, Eterm, Eterm*, int);
+#define cmp_rel(A,A_BASE,B,B_BASE) cmp_rel_opt(A,A_BASE,B,B_BASE,0)
+#define cmp_rel_exact(A,A_BASE,B,B_BASE) cmp_rel_opt(A,A_BASE,B,B_BASE,1)
+#define CMP(A,B) cmp_rel(A,NULL,B,NULL,0)
+#define CMP_EXACT(A,B) cmp_rel(A,NULL,B,NULL,1)
 #else
-Sint cmp(Eterm, Eterm);
-#define cmp_rel(A,A_BASE,B,B_BASE) cmp(A,B)
-#define CMP(A,B) cmp(A,B)
+Sint cmp(Eterm, Eterm, int);
+#define cmp_rel(A,A_BASE,B,B_BASE) cmp(A,B,0)
+#define cmp_rel_exact(A,A_BASE,B,B_BASE) cmp(A,B,1)
+#define CMP(A,B) cmp(A,B,0)
+#define CMP_EXACT(A,B) cmp(A,B,1)
 #endif
 #define cmp_lt(a,b)	(CMP((a),(b)) < 0)
 #define cmp_le(a,b)	(CMP((a),(b)) <= 0)
@@ -216,9 +221,19 @@ Sint cmp(Eterm, Eterm);
 #define cmp_ge(a,b)	(CMP((a),(b)) >= 0)
 #define cmp_gt(a,b)	(CMP((a),(b)) > 0)
 
+#define cmp_lt_exact(a,b)	(CMP_EXACT((a),(b)) < 0)
+#define cmp_le_exact(a,b)	(CMP_EXACT((a),(b)) <= 0)
+#define cmp_ge_exact(a,b)	(CMP_EXACT((a),(b)) >= 0)
+#define cmp_gt_exact(a,b)	(CMP_EXACT((a),(b)) > 0)
+
+
 #define CMP_LT(a,b)	((a) != (b) && cmp_lt((a),(b)))
 #define CMP_GE(a,b)	((a) == (b) || cmp_ge((a),(b)))
 #define CMP_EQ(a,b)	((a) == (b) || cmp_eq((a),(b)))
 #define CMP_NE(a,b)	((a) != (b) && cmp_ne((a),(b)))
+
+
+#define CMP_LT_EXACT(a,b)	((a) != (b) && cmp_lt_exact((a),(b)))
+#define CMP_GE_EXACT(a,b)	((a) == (b) || cmp_ge_exact((a),(b)))
 
 #endif

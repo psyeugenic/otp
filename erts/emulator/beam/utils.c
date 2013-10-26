@@ -2300,9 +2300,9 @@ static int cmp_atoms(Eterm a, Eterm b)
 }
 
 #if HALFWORD_HEAP
-Sint cmp_rel(Eterm a, Eterm* a_base, Eterm b, Eterm* b_base)
+Sint cmp_rel_opt(Eterm a, Eterm* a_base, Eterm b, Eterm* b_base, int exact)
 #else
-Sint cmp(Eterm a, Eterm b)
+Sint cmp(Eterm a, Eterm b, int exact)
 #endif
 {
     DECLARE_WSTACK(stack);
@@ -2711,6 +2711,7 @@ tailrecur_ne:
 	    j = big_sign(aw) ? -1 : 1;
 	    break;
 	case SMALL_FLOAT:
+	    if (exact) goto exact_fall_through;
 	    GET_DOUBLE(bw, f2);
 	    if (f2.fd < MAX_LOSSLESS_FLOAT && f2.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
@@ -2735,12 +2736,14 @@ tailrecur_ne:
 #endif /* ERTS_SIZEOF_ETERM == 8 */
 	    break;
         case FLOAT_BIG:
+	    if (exact) goto exact_fall_through;
 	{
 	    Wterm tmp = aw;
 	    aw = bw;
 	    bw = tmp;
 	}/* fall through */
 	case BIG_FLOAT:
+	    if (exact) goto exact_fall_through;
 	    GET_DOUBLE(bw, f2);
 	    if ((f2.fd < (double) (MAX_SMALL + 1))
 		    && (f2.fd > (double) (MIN_SMALL - 1))) {
@@ -2770,6 +2773,7 @@ tailrecur_ne:
 	    }
 	    break;
 	case FLOAT_SMALL:
+	    if (exact) goto exact_fall_through;
 	    GET_DOUBLE(aw, f1);
 	    if (f1.fd < MAX_LOSSLESS_FLOAT && f1.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
@@ -2793,6 +2797,7 @@ tailrecur_ne:
 	    }
 #endif /* ERTS_SIZEOF_ETERM == 8 */
 	    break;
+exact_fall_through:
 	default:
 	    j = b_tag - a_tag;
 	}
