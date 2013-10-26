@@ -59,7 +59,8 @@ char integer float atom string var
 '*' '/' 'div' 'rem' 'band' 'and'
 '+' '-' 'bor' 'bxor' 'bsl' 'bsr' 'or' 'xor'
 '++' '--'
-'==' '/=' '=<' '<' '>=' '>' '=:=' '=/=' '<='
+'==' '/=' '=<' '<' '>=' '>' '<='
+'=:=' '=/=' '=:<' '<:<' '>:=' '>:>'
 '<<' '>>'
 '!' '=' '::' '..' '...'
 'spec' 'callback' % helper
@@ -484,6 +485,10 @@ comp_op -> '>=' : '$1'.
 comp_op -> '>' : '$1'.
 comp_op -> '=:=' : '$1'.
 comp_op -> '=/=' : '$1'.
+comp_op -> '=:<' : '$1'.
+comp_op -> '<:<' : '$1'.
+comp_op -> '>:=' : '$1'.
+comp_op -> '>:>' : '$1'.
 
 rule -> rule_clauses : build_rule('$1').
 
@@ -993,6 +998,10 @@ inop_prec('>=') -> {300,200,300};
 inop_prec('>') -> {300,200,300};
 inop_prec('=:=') -> {300,200,300};
 inop_prec('=/=') -> {300,200,300};
+inop_prec('=:<') -> {300,200,300};
+inop_prec('<:<') -> {300,200,300};
+inop_prec('>:=') -> {300,200,300};
+inop_prec('>:>') -> {300,200,300};
 inop_prec('++') -> {400,300,300};
 inop_prec('--') -> {400,300,300};
 inop_prec('+') -> {400,400,500};
@@ -1050,3 +1059,5 @@ get_attribute(L, Name) ->
 
 get_attributes(L) ->
     erl_scan:attributes_info(L).
+
+%% vim: ft=erlang
