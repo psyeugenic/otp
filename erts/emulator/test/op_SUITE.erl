@@ -91,7 +91,24 @@ relop_simple(Config) when is_list(Config) ->
     Terms = [-F2,Big2,-F1,-Big1,-33,-33.0,0,0.0,42,42.0,Big1,F1,Big2,F2,a,b,
 	     {T1,a},{T2,b},[T1,Big1],[T2,Big2]],
     
-    ?line Combos = [{V1,V2} || V1 <- Terms, V2 <- Terms],
+    Combos = [{V1,V2} || V1 <- Terms, V2 <- Terms],
+
+    %% simple exact test
+
+    true  = id(Big1) < id(Big2),
+    false = id(Big1) > id(Big2),
+    true  = id(Big1) <:< id(Big2),
+    false = id(Big1) >:> id(Big2),
+
+    true  = id(F1) < id(Big2),
+    false = id(F1) > id(Big2),
+    false = id(F1) <:< id(Big2),
+    true  = id(F1) >:> id(Big2),
+
+    false = id( 1) <   id( 1.0),
+    true  = id( 1) <:< id( 1.0),
+    true  = id(-1) <:< id( 1.0),
+    true  = id( 1) <:< id(-1.0),
     
     lists:foreach(fun({A,B}) -> relop_simple_do(A,B) end,
 		  Combos),
@@ -104,35 +121,53 @@ relop_simple(Config) when is_list(Config) ->
 	   1000),
     ok.
 
+id(I) -> I.
+
 relop_simple_do(V1,V2) ->
     %%io:format("compare ~p\n   and  ~p\n",[V1,V2]),
 
     L = V1 < V2,
-    ?line L = not (V1 >= V2),
-    ?line L = V2 > V1,
-    ?line L = not (V2 =< V1),
+    L = not (V1 >= V2),
+    L = V2 > V1,
+    L = not (V2 =< V1),
 
     G = V1 > V2,
-    ?line G = not (V1 =< V2),
-    ?line G = V2 < V1,
-    ?line G = not (V2 >= V1),
+    G = not (V1 =< V2),
+    G = V2 < V1,
+    G = not (V2 >= V1),
+
+    EQ = V1 == V2,
+    EQ = V2 == V1,
+    EQ = not (V1 /= V2),
+    EQ = not (V2 /= V1),
+
+    LID = V1 <:< V2,
+    LID = not (V1 >:= V2),
+    LID = V2 >:> V1,
+    LID = not (V2 =:< V1),
+
+    GID = V1 >:> V2,
+    GID = not (V1 =:< V2),
+    GID = V2 <:< V1,
+    GID = not (V2 >:= V1),
     
     ID = V1 =:= V2,
-    ?line ID = V2 =:= V1,
-    ?line ID = not (V1 =/= V2),
-    ?line ID = not (V2 =/= V1),
-    
-    EQ = V1 == V2,
-    ?line EQ = V2 == V1,
-    ?line EQ = not (V1 /= V2),
-    ?line EQ = not (V2 /= V1),
+    ID = V2 =:= V1,
+    ID = not (V1 =/= V2),
+    ID = not (V2 =/= V1),
 
-    ?line case {L, EQ, ID, G, cmp_emu(V1,V2)} of
-	      { true, false, false, false, -1} -> ok;
-	      {false, true,  false, false,  0} -> ok;
-	      {false, true,   true, false,  0} -> ok;
-	      {false, false, false, true,  +1} -> ok
-	  end.
+    case {LID, GID, ID, cmp_exact_emu(V1,V2)} of
+	{ true, false, false, -1} -> ok;
+	{false, false,  true,  0} -> ok;
+	{false,  true, false, +1} -> ok
+    end,
+
+    case {L, EQ, ID, G, cmp_emu(V1,V2)} of
+        { true, false, false, false, -1} -> ok;
+        {false, true,  false, false,  0} -> ok;
+        {false, true,   true, false,  0} -> ok;
+        {false, false, false, true,  +1} -> ok
+    end.
     
 %% Emulate internal "cmp"
 cmp_emu(A,B) when is_tuple(A), is_tuple(B) ->
@@ -153,6 +188,26 @@ cmp_emu(A,B) ->
        A > B -> +1;
        true -> 0
     end.					              
+
+%% Emulate internal "cmp_exact"
+cmp_exact_emu(A,B) when is_tuple(A), is_tuple(B) ->
+    SA = tuple_size(A),
+    SB = tuple_size(B),
+    if SA =:= SB -> cmp_exact_emu(tuple_to_list(A),tuple_to_list(B));
+       SA > SB -> +1;
+       SA < SB -> -1
+    end;
+cmp_exact_emu([A|TA],[B|TB]) ->
+    case cmp_exact_emu(A,B) of
+	0   -> cmp_exact_emu(TA,TB);
+	CMP -> CMP
+    end;
+cmp_exact_emu(A,B) ->
+    %% We cheat and use real "cmp" for the primitive types.
+    if A <:< B -> -1;
+       A >:> B -> +1;
+       true -> 0
+    end.
     
 make_rand_term(1) ->
     make_rand_term_single();
@@ -236,9 +291,9 @@ relop(Config) when is_list(Config) ->
     F1 = float(Big1),
     F2 = float(Big2),
     Vs0 = [a,b,-33,-33.0,0,0.0,42,42.0,Big1,Big2,F1,F2],
-    ?line Vs = [unvalue(V) || V <- Vs0],
-    Ops = ['==', '/=', '=:=', '=/=', '<', '=<', '>', '>='],
-    ?line binop(Ops, Vs).
+    Vs = [unvalue(V) || V <- Vs0],
+    Ops = ['==', '/=', '=:=', '=/=', '<', '=<', '>', '>=', '<:<', '=:<', '>:>', '>:='],
+    binop(Ops, Vs).
 
 complex_relop(doc) ->
     "Test the relational operators and internal BIFs on lists and tuples.";
@@ -247,14 +302,15 @@ complex_relop(Config) when is_list(Config) ->
     Float = float(Big),
     Vs0 = [an_atom,42.0,42,Big,Float],
     Vs = flatmap(fun(X) -> [unvalue({X}),unvalue([X])] end, Vs0),
-    Ops = ['==', '/=', '=:=', '=/=', '<', '=<', '>', '>='],
-    ?line binop(Ops, Vs).
+    Ops = ['==', '/=', '=:=', '=/=', '<', '=<', '>', '>=', '<:<', '=:<', '>:>', '>:='],
+    binop(Ops, Vs).
 
 binop(Ops, Vs) ->
-    Run = fun(Op, N) -> ?line Cases = [{Op,V1,V2} || V1 <- Vs, V2 <- Vs],
-			?line run_test_module(Cases, true),
-			N + length(Cases) end,
-    ?line NumCases = foldl(Run, 0, Ops),
+    Run = fun(Op, N) -> Cases = [{Op,V1,V2} || V1 <- Vs, V2 <- Vs],
+	    run_test_module(Cases, true),
+	    N + length(Cases)
+    end,
+    NumCases = foldl(Run, 0, Ops),
     {comment,integer_to_list(NumCases) ++ " cases"}.
     
 run_test_module(Cases, GuardsOk) ->
