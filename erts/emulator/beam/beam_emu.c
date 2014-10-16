@@ -59,6 +59,13 @@
 #  define OpCode(OpCode)  (&&lb_##OpCode)
 #endif
 
+#ifdef ERTS_OPCODE_COUNTER_SUPPORT
+#  define CountInc(Ix)      \
+    do {                    \
+	opc[(Ix)].count++;  \
+    }while(0)
+#endif
+
 #ifdef ERTS_ENABLE_LOCK_CHECK
 #  ifdef ERTS_SMP
 #    define PROCESS_MAIN_CHK_LOCKS(P)					\

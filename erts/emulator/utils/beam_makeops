@@ -682,7 +682,7 @@ sub emulator_output {
     print "#define DEFINE_COUNTING_LABELS";
     for ($i = 0; $i < @op_to_name; $i++) {
 	my($name) = $op_to_name[$i];
-	print " \\\nCountCase($name): opc[$i].count++; goto lb_$name;";
+	print " \\\nCountCase($name): CountInc($i); goto lb_$name;";
     }
     print "\n\n";
 
