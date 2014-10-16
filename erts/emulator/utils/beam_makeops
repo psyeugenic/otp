@@ -469,6 +469,11 @@ sub emulator_output {
     #
     # Generate code for specific ops.
     #
+    print "#ifdef ERTS_OPCODE_COUNTER_SUPPORT\n";
+    print "#  define BEAM_LOAD_INIT_COUNTER(V) ,V\n";
+    print "#else\n";
+    print "#  define BEAM_LOAD_INIT_COUNTER(V)\n";
+    print "#endif\n\n";
     my($spec_opnum) = 0;
     print "OpEntry opc[] = {\n";
     foreach $key (sort keys %specific_op) {
@@ -543,7 +548,8 @@ sub emulator_output {
 		$sep = ",";
 	    }
 	    $init .= "}";
-	    &init_item($print_name, $init, $size, $pack, $sign, 0);
+	    my $def = "BEAM_LOAD_INIT_COUNTER";
+	    &init_item($print_name, $init, $size, $pack, $sign, {'define'=>$def,'val'=>0});
 	    $op_to_name[$spec_opnum] = $instr;
 	    $spec_opnum++;
 	}
@@ -736,7 +742,14 @@ sub init_item {
 	} elsif (/^-?\d/) {
 	    print "$sep$_";
 	} else {
-	    print "$sep\"$_\"";
+	    my $val = $_;
+	    if (ref $_ eq 'HASH') {
+		my $def = $_->{'define'};
+		my $val = $_->{'val'};
+		print " $def($val)";
+	    } else {
+		print "$sep\"$_\"";
+	    }
 	}
 	$sep = ", ";
     }

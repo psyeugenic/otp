@@ -155,7 +155,9 @@ typedef struct op_entry {
    int sz;			/* Number of loaded words. */
    char* pack;			/* Instructions for packing engine. */
    char* sign;			/* Signature string. */
+#ifdef ERTS_OPCODE_COUNTER_SUPPORT
    unsigned count;		/* Number of times executed. */
+#endif
 } OpEntry;
 
 extern OpEntry opc[];		/* Description of all instructions. */
