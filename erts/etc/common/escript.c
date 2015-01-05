@@ -453,9 +453,15 @@ main(int argc, char** argv)
 
     /*
      * Push initial arguments.
+     *
+     * Suggestion: +sbtu +A0 -noinput -mode minimal
+     * +A0: should not be default
+     * -noinput: -noshell should be used instead
      */
 
     PUSH("+B");
+    PUSH("+sbtu");
+    PUSH2("-mode", "minimal");
     PUSH2("-boot", "start_clean");
     PUSH("-noshell");
 
