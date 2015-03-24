@@ -1933,8 +1933,7 @@ ERL_NIF_TERM enif_make_new_map(ErlNifEnv* env)
     tup   = make_tuple(hp);
     *hp++ = make_arityval(0);
     mp    = (flatmap_t*)hp;
-    mp->thing_word = MAP_HEADER_FLATMAP;
-    mp->size = 0;
+    mp->thing_word = MAP_HEADER_FLATMAP(0);
     mp->keys = tup;
 
     return make_flatmap(mp);

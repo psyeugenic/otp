@@ -1182,7 +1182,7 @@ typedef struct {
     Eterm* hp_end;
     int remaining_n;
     char* remaining_bytes;
-    Eterm* maps_list;
+    struct dec_term_maps_placeholder* maps_list;
     struct dec_term_hamt_placeholder* hamt_list;
 } B2TDecodeContext;
 
@@ -2933,6 +2933,15 @@ undo_offheap_in_area(ErlOffHeap* off_heap, Eterm* start, Eterm* end)
 #endif /* DEBUG */
 }
 
+struct dec_term_maps_placeholder
+{
+    struct dec_term_maps_placeholder* next;
+    Eterm* objp;
+};
+
+#define DEC_TERM_MAPS_PLACEHOLDER_SIZE \
+    (sizeof(struct dec_term_maps_placeholder) / sizeof(Eterm))
+
 struct dec_term_hamt_placeholder
 {
     struct dec_term_hamt_placeholder* next;
@@ -2955,7 +2964,7 @@ dec_term(ErtsDistExternal *edep, Eterm** hpp, byte* ep, ErlOffHeap* off_heap,
     int n;
     ErtsAtomEncoding char_enc;
     register Eterm* hp;        /* Please don't take the address of hp */
-    Eterm *maps_list;   /* for preprocessing of small maps */
+    struct dec_term_maps_placeholder* maps_list;   /* for preprocessing of small maps */
     struct dec_term_hamt_placeholder* hamt_list;   /* for preprocessing of big maps */
     Eterm* next;
     SWord reds;
@@ -3592,36 +3601,54 @@ dec_term_atom_common:
 		Eterm keys;
 
 		size = get_int32(ep); ep += 4;
+                erts_fprintf(stderr,"size %lu\r\n", size);
 
                 if (size <= MAP_SMALL_MAP_LIMIT) {
+                    struct dec_term_maps_placeholder* holder =
+                        (struct dec_term_maps_placeholder*) hp;
                     flatmap_t *mp;
+
+                    holder->next = maps_list;
+                    maps_list    = holder;
+
+                    hp   += DEC_TERM_MAPS_PLACEHOLDER_SIZE;
 
                     keys  = make_tuple(hp);
                     *hp++ = make_arityval(size);
+                    kptr  = hp;
+                    /*
                     hp   += size;
-                    kptr = hp - 1;
-
+                    kptr  = hp - 1;
+*/
+                    hp   += (size + 1);
                     mp    = (flatmap_t*)hp;
                     hp   += MAP_HEADER_FLATMAP_SZ;
+                    vptr  = hp;
                     hp   += size;
-                    vptr = hp - 1;
+                    /*
+                    hp   += (MAP_HEADER_FLATMAP_SZ + size);
+                    vptr  = hp - 1;
+                    */
 
                     /* kptr, last word for keys
                      * vptr, last word for values
                      */
 
-                    /*
-                     * Use thing_word to link through decoded maps.
-                     * The list of maps is for later validation.
-                     */
-
-                    mp->thing_word = (Eterm) COMPRESS_POINTER(maps_list);
-                    maps_list      = (Eterm *) mp;
-
-                    mp->size       = size;
+                    mp->thing_word = MAP_HEADER_FLATMAP(size);
+                    erts_fprintf(stderr,"MAP_EXT hdr size %lu\r\n", MAP_HEADER_VAL(mp->thing_word));
+                    holder->objp   = (Eterm *) mp;
                     mp->keys       = keys;
                     *objp          = make_flatmap(mp);
 
+                    while(size--) {
+                        *vptr = (Eterm) COMPRESS_POINTER(next);
+                        *kptr = (Eterm) COMPRESS_POINTER(vptr);
+                        next  = kptr;
+                        vptr++;
+                        kptr++;
+                    }
+ 
+                    /*
                     for (n = size; n; n--) {
                         *vptr = (Eterm) COMPRESS_POINTER(next);
                         *kptr = (Eterm) COMPRESS_POINTER(vptr);
@@ -3629,6 +3656,7 @@ dec_term_atom_common:
                         vptr--;
                         kptr--;
                     }
+                    */
                 }
                 else {  /* Make hamt */
                     struct dec_term_hamt_placeholder* holder =
@@ -3887,11 +3915,17 @@ dec_term_atom_common:
      */
 
     while (maps_list) {
-	next  = (Eterm *)(EXPAND_POINTER(*maps_list));
-	*maps_list = MAP_HEADER_FLATMAP;
-	if (!erts_validate_and_sort_flatmap((flatmap_t*)maps_list))
+        struct dec_term_maps_placeholder* maps = maps_list;
+        Eterm *wat = (maps->objp);
+
+        erts_fprintf(stderr, " keys  %T\r\n", wat[1]);
+
+	if (!erts_validate_and_sort_flatmap((flatmap_t*)maps->objp))
 	    goto error;
-	maps_list  = next;
+        erts_fprintf(stderr,"%T\r\n", make_flatmap(maps->objp));
+        erts_fprintf(stderr,"next\r\n");
+	maps_list = maps->next;
+        *(Eterm*)maps = make_pos_bignum_header(DEC_TERM_MAPS_PLACEHOLDER_SIZE-1);
     }
 
     /* Iterate through all the hamts and build tree nodes.
@@ -4510,7 +4544,7 @@ init_done:
 	    ep += 4;
 	    ADDTERMS(2*n);
             if (n <= MAP_SMALL_MAP_LIMIT) {
-                heap_size += 3 + n + 1 + n;
+                heap_size += 2 + n + 1 + n + DEC_TERM_MAPS_PLACEHOLDER_SIZE + 1;
             } else {
                 heap_size += hashmap_over_estimated_heap_size(n);
             }

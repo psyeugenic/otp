@@ -36,7 +36,6 @@ Uint32 hashmap_bitcount(Uint32 x);
 
 typedef struct flatmap_s {
     Eterm thing_word;
-    Uint  size;
     Eterm keys;      /* tuple */
 } flatmap_t;
 /* map node
@@ -64,11 +63,10 @@ typedef struct flatmap_s {
 #define hashmap_shift_hash(Heap,Hx,Lvl,Key) \
     (((++(Lvl)) & 7) ? (Hx) >> 4 : hashmap_make_hash(CONS(Heap, make_small((Lvl)>>3), Key)))
 
-
 /* erl_term.h stuff */
-#define flatmap_get_values(x)        (((Eterm *)(x)) + 3)
+#define flatmap_get_values(x)        (((Eterm *)(x)) + 2)
 #define flatmap_get_keys(x)          (((Eterm *)tuple_val(((flatmap_t *)(x))->keys)) + 1)
-#define flatmap_get_size(x)          (((flatmap_t*)(x))->size)
+#define flatmap_get_size(x)          (MAP_HEADER_VAL(((flatmap_t *)(x))->thing_word))
 
 #ifdef DEBUG
 #define MAP_SMALL_MAP_LIMIT    (3)
@@ -160,8 +158,8 @@ typedef struct hashmap_head_s {
 #define MAKE_MAP_HEADER(Type,Arity,Val) \
     (_make_header(((((Uint16)(Val)) << MAP_HEADER_ARITY_SZ) | (Arity)) << MAP_HEADER_TAG_SZ | (Type) , _TAG_HEADER_MAP))
 
-#define MAP_HEADER_FLATMAP \
-    MAKE_MAP_HEADER(MAP_HEADER_TAG_FLATMAP_HEAD,0x1,0x0)
+#define MAP_HEADER_FLATMAP(Sz) \
+    MAKE_MAP_HEADER(MAP_HEADER_TAG_FLATMAP_HEAD,0x1,(Sz))
 
 #define MAP_HEADER_HAMT_HEAD_ARRAY \
     MAKE_MAP_HEADER(MAP_HEADER_TAG_HAMT_HEAD_ARRAY,0x1,0xffff)

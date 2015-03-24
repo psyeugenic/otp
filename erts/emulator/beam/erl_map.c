@@ -306,8 +306,8 @@ static Eterm flatmap_from_validated_list(Process *p, Eterm list, Uint size) {
     hp   += MAP_HEADER_FLATMAP_SZ;
     vs    = hp;
 
-    mp->thing_word = MAP_HEADER_FLATMAP;
-    mp->size = size; /* set later, might shrink*/
+    /* reset later, might shrink*/
+    mp->thing_word = MAP_HEADER_FLATMAP(size);
     mp->keys = keys;
 
     if (size == 0)
@@ -373,7 +373,7 @@ static Eterm flatmap_from_validated_list(Process *p, Eterm list, Uint size) {
     }
 
     *thp = make_arityval(size);
-    mp->size = size;
+    mp->thing_word = MAP_HEADER_FLATMAP(size);
     return res;
 }
 
@@ -442,8 +442,7 @@ static Eterm hashmap_from_validated_list(Process *p, Eterm list, Uint size) {
 	hp   += MAP_HEADER_FLATMAP_SZ;
 	vs    = hp;
 
-	mp->thing_word = MAP_HEADER_FLATMAP;
-	mp->size = n;
+	mp->thing_word = MAP_HEADER_FLATMAP(n);
 	mp->keys = keys;
 
 	hashmap_iterator_init(&wstack, res, 0);
@@ -913,6 +912,7 @@ BIF_RETTYPE maps_keys_1(BIF_ALIST_1) {
 BIF_RETTYPE maps_merge_2(BIF_ALIST_2) {
     if (is_flatmap(BIF_ARG_1)) {
 	if (is_flatmap(BIF_ARG_2)) {
+            erts_fprintf(stderr, "merge %T %T\r\n", BIF_ARG_2, BIF_ARG_1);
 	    BIF_RET(flatmap_merge(BIF_P, BIF_ARG_1, BIF_ARG_2));
 	} else if (is_hashmap(BIF_ARG_2)) {
 	    /* Will always become a tree */
@@ -951,8 +951,6 @@ static Eterm flatmap_merge(Process *p, Eterm nodeA, Eterm nodeB) {
     mp_new = (flatmap_t*)hp; hp += MAP_HEADER_FLATMAP_SZ;
     vs     = hp; hp += n1 + n2;
 
-    mp_new->thing_word = MAP_HEADER_FLATMAP;
-    mp_new->size = 0;
     mp_new->keys = tup;
 
     i1  = 0; i2 = 0;
@@ -1006,7 +1004,7 @@ static Eterm flatmap_merge(Process *p, Eterm nodeA, Eterm nodeB) {
 
     n = n1 + n2 - unused_size;
     *thp = make_arityval(n);
-    mp_new->size = n;
+    mp_new->thing_word = MAP_HEADER_FLATMAP(n);
 
     /* Reshape map to a hashmap if the map exceeds the limit */
 
@@ -1352,8 +1350,7 @@ BIF_RETTYPE maps_new_0(BIF_ALIST_0) {
     *hp++ = make_arityval(0);
 
     mp    = (flatmap_t*)hp;
-    mp->thing_word = MAP_HEADER_FLATMAP;
-    mp->size = 0;
+    mp->thing_word = MAP_HEADER_FLATMAP(0);
     mp->keys = tup;
 
     BIF_RET(make_flatmap(mp));
@@ -1404,8 +1401,7 @@ int erts_maps_remove(Process *p, Eterm key, Eterm map, Eterm *res) {
 	*thp++ = make_arityval(n - 1);
 
 	*res   = make_flatmap(mhp);
-	*mhp++ = MAP_HEADER_FLATMAP;
-	*mhp++ = n - 1;
+	*mhp++ = MAP_HEADER_FLATMAP(n - 1);
 	*mhp++ = tup;
 
 	if (is_immed(key)) {
@@ -1483,8 +1479,7 @@ int erts_maps_update(Process *p, Eterm key, Eterm value, Eterm map, Eterm *res) 
 
 	hp  = HAlloc(p, MAP_HEADER_FLATMAP_SZ + n);
 	shp = hp;
-	*hp++ = MAP_HEADER_FLATMAP;
-	*hp++ = n;
+	*hp++ = MAP_HEADER_FLATMAP(n);
 	*hp++ = mp->keys;
 
 	if (is_immed(key)) {
@@ -1544,8 +1539,7 @@ Eterm erts_maps_put(Process *p, Eterm key, Eterm value, Eterm map) {
 	    *hp++ = make_arityval(1);
 	    *hp++ = key;
 	    res   = make_flatmap(hp);
-	    *hp++ = MAP_HEADER_FLATMAP;
-	    *hp++ = 1;
+	    *hp++ = MAP_HEADER_FLATMAP(1);
 	    *hp++ = tup;
 	    *hp++ = value;
 
@@ -1562,8 +1556,7 @@ Eterm erts_maps_put(Process *p, Eterm key, Eterm value, Eterm map) {
 	hp  = HAlloc(p, MAP_HEADER_FLATMAP_SZ + n);
 	shp = hp; /* save hp, used if optimistic update fails */
 	res = make_flatmap(hp);
-	*hp++ = MAP_HEADER_FLATMAP;
-	*hp++ = n;
+	*hp++ = MAP_HEADER_FLATMAP(n);
 	*hp++ = mp->keys;
 
 	if (is_immed(key)) {
@@ -1611,8 +1604,7 @@ Eterm erts_maps_put(Process *p, Eterm key, Eterm value, Eterm map) {
 
 	hp    = HAlloc(p, 3 + n + 1);
 	res   = make_flatmap(hp);
-	*hp++ = MAP_HEADER_FLATMAP;
-	*hp++ = n + 1;
+	*hp++ = MAP_HEADER_FLATMAP(n + 1);
 	*hp++ = tup;
 
 	ks = flatmap_get_keys(mp);
@@ -2265,8 +2257,7 @@ unroll:
 	hp   += MAP_HEADER_FLATMAP_SZ;
 	vs    = hp;
 
-	mp->thing_word = MAP_HEADER_FLATMAP;
-	mp->size = n;
+	mp->thing_word = MAP_HEADER_FLATMAP(n);
 	mp->keys = keys;
 
 	hashmap_iterator_init(&wstack, map, 0);

@@ -566,12 +566,19 @@ print_term(fmtfn_t fn, void* arg, Eterm obj, long *dcount,
 	    break;
 	case MAP_DEF:
             if (is_flatmap(wobj)) {
+                Uint mapval;
+                Eterm *head;
                 Uint n;
                 Eterm *ks, *vs;
                 flatmap_t *mp = (flatmap_t *)flatmap_val(wobj);
                 n  = flatmap_get_size(mp);
                 ks = flatmap_get_keys(mp);
                 vs = flatmap_get_values(mp);
+
+                head = flatmap_val(wobj);
+                mapval = MAP_HEADER_VAL(*head);
+ 
+                n = mapval;
 
                 PRINT_CHAR(res, fn, arg, '#');
                 PRINT_CHAR(res, fn, arg, '{');

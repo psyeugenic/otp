@@ -2157,8 +2157,7 @@ restart:
             t = *ehp++ = *--esp;
             {
                 flatmap_t *m = (flatmap_t *)ehp;
-                m->thing_word = MAP_HEADER_FLATMAP;
-                m->size = n;
+                m->thing_word = MAP_HEADER_FLATMAP(n);
                 m->keys = t;
             }
             t = make_flatmap(ehp);

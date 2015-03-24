@@ -5627,8 +5627,7 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 
                 hp += 1 + size;
                 mp = (flatmap_t*)hp;
-                mp->thing_word = MAP_HEADER_FLATMAP;
-                mp->size = size;
+                mp->thing_word = MAP_HEADER_FLATMAP(size);
                 mp->keys = make_tuple(tp);
                 mess = make_flatmap(mp);
 

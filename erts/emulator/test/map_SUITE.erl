@@ -1519,7 +1519,8 @@ copy_term(T) ->
 do_compare([Gen1, Gen2]) ->
     M1 = Gen1(),
     M2 = Gen2(),
-    %%io:format("Maps to compare: ~p AND ~p\n", [M1, M2]),
+    %io:format("Maps to compare: ~w  ~p~n"
+    %          "            AND: ~w  ~p~n", [maps:size(M1),M1,maps:size(M2),M2]),
     C = (M1 < M2),
     Erlang = maps_lessthan(M1, M2),
     C = Erlang,

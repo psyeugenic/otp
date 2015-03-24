@@ -6612,8 +6612,7 @@ new_map(Process* p, Eterm* reg, BeamInstr* I)
     *thp++ = make_arityval(n/2);
 
     mp = (flatmap_t *)mhp; mhp += MAP_HEADER_FLATMAP_SZ;
-    mp->thing_word = MAP_HEADER_FLATMAP;
-    mp->size = n/2;
+    mp->thing_word = MAP_HEADER_FLATMAP(n/2);
     mp->keys = keys;
 
     for (i = 0; i < n/2; i++) {
@@ -6733,7 +6732,6 @@ update_map_assoc(Process* p, Eterm* reg, Eterm map, BeamInstr* I)
     res = make_flatmap(hp);
     mp = (flatmap_t *)hp;
     hp += MAP_HEADER_FLATMAP_SZ;
-    mp->thing_word = MAP_HEADER_FLATMAP;
     mp->keys = make_tuple(kp-1);
 
     old_vals = flatmap_get_values(old_mp);
@@ -6825,7 +6823,7 @@ update_map_assoc(Process* p, Eterm* reg, Eterm map, BeamInstr* I)
     n = kp - p->htop - 1;	/* Actual number of keys/values */
     *p->htop = make_arityval(n);
     p->htop  = hp;
-    mp->size = n;
+    mp->thing_word = MAP_HEADER_FLATMAP(n);
 
     /* The expensive case, need to build a hashmap */
     if (n > MAP_SMALL_MAP_LIMIT) {
@@ -6937,8 +6935,7 @@ update_map_exact(Process* p, Eterm* reg, Eterm map, BeamInstr* I)
     res = make_flatmap(hp);
     mp = (flatmap_t *)hp;
     hp += MAP_HEADER_FLATMAP_SZ;
-    mp->thing_word = MAP_HEADER_FLATMAP;
-    mp->size = num_old;
+    mp->thing_word = MAP_HEADER_FLATMAP(num_old);
     mp->keys = old_mp->keys;
 
     /* Get array of key/value pairs to be updated */
