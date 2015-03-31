@@ -201,6 +201,194 @@ erts_maps_get(Eterm key, Eterm map)
     return erts_hashmap_get_rel(hx, key, map, map_base);
 }
 
+
+BIF_RETTYPE maps_first_key_1(BIF_ALIST_1) {
+    Eterm *hp, res;
+    if (is_flatmap(BIF_ARG_1)) {
+	Eterm *ks, *vs;
+	flatmap_t *mp;
+	Uint n;
+
+	mp  = (flatmap_t *)flatmap_val(BIF_ARG_1);
+	n   = flatmap_get_size(mp);
+
+	if (n == 0) {
+            BIF_ERROR(BIF_P, BADARG);
+	}
+
+	ks  = flatmap_get_keys(mp);
+	vs  = flatmap_get_values(mp);
+
+        hp    = HAlloc(BIF_P, 3);
+        res   = make_tuple(hp);
+        *hp++ = make_arityval(2);
+        *hp++ = ks[0];
+        *hp++ = vs[0];
+        BIF_RET(res);
+    }
+    if (is_hashmap(BIF_ARG_1)) {
+        Eterm *ptr, node;
+        node = BIF_ARG_1;
+
+        ASSERT(is_boxed(node));
+        ptr = boxed_val(node);
+        ASSERT(is_header(ptr[0]));
+        ASSERT(is_hashmap_header_head(ptr[0]));
+        ASSERT(ptr[1] != 0);
+
+        ptr++;
+        for (;;) {
+            node = ptr[1];
+            if (is_list(node)) { /* LEAF NODE [K|V] */
+                ptr = list_val(node);
+
+                hp    = HAlloc(BIF_P, 3);
+                res   = make_tuple(hp);
+                *hp++ = make_arityval(2);
+                *hp++ = CAR(ptr);
+                *hp++ = CDR(ptr);
+                BIF_RET(res);
+            }
+
+            ASSERT(is_boxed(node));
+            ptr = boxed_val(node);
+            ASSERT(is_header(ptr[0]));
+            ASSERT(!is_hashmap_header_head(ptr[0]));
+        }
+    }
+    BIF_ERROR(BIF_P, BADARG);
+}
+
+BIF_RETTYPE maps_next_key_2(BIF_ALIST_2) {
+    Eterm *hp, res;
+
+    if (is_flatmap(BIF_ARG_2)) {
+	Eterm *ks, *vs;
+	flatmap_t *mp;
+	Uint n, i;
+
+	mp = (flatmap_t *)flatmap_val(BIF_ARG_2);
+	n  = flatmap_get_size(mp);
+
+	if (n == 0) {
+            BIF_ERROR(BIF_P, BADARG);
+	}
+
+	ks  = flatmap_get_keys(mp);
+	vs  = flatmap_get_values(mp);
+
+        i = 0;
+        while (i < n) {
+            if (EQ(BIF_ARG_1, ks[i])) {
+                if (i + 1 < n) {
+                    hp    = HAlloc(BIF_P, 3);
+                    res   = make_tuple(hp);
+                    *hp++ = make_arityval(2);
+                    *hp++ = ks[i+1];
+                    *hp++ = vs[i+1];
+                    BIF_RET(res);
+                }
+                BIF_RET(am_none);
+            }
+            i++;
+        }
+    }
+    if (is_hashmap(BIF_ARG_2)) {
+        Eterm *ptr, hdr, key, node;
+        Uint ix, lvl = 0;
+        Uint32 hval, hx;
+        DECLARE_WSTACK(wstack);
+        DeclareTmpHeapNoproc(th,2);
+        UseTmpHeapNoproc(2);
+
+        node = BIF_ARG_2;
+        key  = BIF_ARG_1;
+        hx   = hashmap_make_hash(key);
+
+        ASSERT(is_boxed(node));
+        ptr = boxed_val(node);
+        hdr = *ptr;
+        ASSERT(is_header(hdr));
+        ASSERT(is_hashmap_header_head(hdr));
+        WSTACK_PUSH(wstack, (UWord)ptr);
+        ptr++;
+
+        for (;;) {
+            hval = MAP_HEADER_VAL(hdr);
+            ix   = hashmap_index(hx);
+            if (hval != 0xffff) {
+                if (!((1 << ix) & hval)) {
+                    DESTROY_WSTACK(wstack);
+                    UnUseTmpHeapNoproc(2);
+                    BIF_ERROR(BIF_P, BADARG);
+                }
+                ix = hashmap_bitcount(hval & ((1 << ix) - 1));
+            }
+            WSTACK_PUSH(wstack, (UWord)ix);
+            node = ptr[ix+1];
+
+            if (is_list(node)) { /* LEAF NODE [K|V] */
+                ptr = list_val(node);
+
+                if (!EQ(CAR(ptr),key)) {
+                    DESTROY_WSTACK(wstack);
+                    UnUseTmpHeapNoproc(2);
+                    BIF_ERROR(BIF_P, BADARG);
+                }
+                break;
+            }
+
+            hx = hashmap_shift_hash(th,hx,lvl,key);
+
+            ASSERT(is_boxed(node));
+            ptr = boxed_val(node);
+            hdr = *ptr;
+            WSTACK_PUSH(wstack, (UWord) ptr);
+            ASSERT(is_header(hdr));
+            ASSERT(!is_hashmap_header_head(hdr));
+        }
+
+        /* find next key
+         * pop the stack until we can traverse to the right
+         */
+        while(!WSTACK_ISEMPTY(wstack)) {
+            ix   = (Uint)   WSTACK_POP(wstack);
+            ptr  = (Eterm*) WSTACK_POP(wstack);
+
+            hdr  = *ptr;
+            hval = MAP_HEADER_VAL(hdr);
+
+            if (ix + 1 < hashmap_bitcount(hval)) {
+                if (is_hashmap_header_head(hdr)) {
+                    ptr++;
+                }
+                node = ptr[ix + 2];
+
+                while (is_not_list(node)) {
+                    ptr  = boxed_val(node);
+                    hdr  = *ptr;
+                    node = ptr[1];
+                }
+
+                ptr   = list_val(node);
+                hp    = HAlloc(BIF_P, 3);
+                res   = make_tuple(hp);
+                *hp++ = make_arityval(2);
+                *hp++ = CAR(ptr);
+                *hp++ = CDR(ptr);
+                DESTROY_WSTACK(wstack);
+                UnUseTmpHeapNoproc(2);
+                BIF_RET(res);
+            }
+        }
+        DESTROY_WSTACK(wstack);
+        UnUseTmpHeapNoproc(2);
+        BIF_RET(am_none);
+    }
+
+    BIF_ERROR(BIF_P, BADARG);
+}
+
 BIF_RETTYPE maps_find_2(BIF_ALIST_2) {
     if (is_map(BIF_ARG_2)) {
         Eterm *hp, res;
