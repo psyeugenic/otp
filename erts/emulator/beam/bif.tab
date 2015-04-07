@@ -635,6 +635,9 @@ bif erts_debug:map_info/1
 
 bif maps:first_key/1
 bif maps:next_key/2
+
+bif maps:iterator/1
+bif maps:next/1
 #
 # Obsolete
 #

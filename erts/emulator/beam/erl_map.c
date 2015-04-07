@@ -201,6 +201,186 @@ erts_maps_get(Eterm key, Eterm map)
     return erts_hashmap_get_rel(hx, key, map, map_base);
 }
 
+/* iterator */
+
+#define HALLOC_EXTRA (20)
+BIF_RETTYPE maps_iterator_1(BIF_ALIST_1) {
+    if (is_flatmap(BIF_ARG_1)) {
+	Eterm *hp;
+        hp    = HAlloc(BIF_P, 3);
+        hp[0] = make_arityval(2);
+        hp[1] = BIF_ARG_1;
+        hp[2] = make_small(0);
+        BIF_RET(make_tuple(hp));
+    }
+
+    if (is_hashmap(BIF_ARG_1)) {
+        Eterm *ptr, *hp, node, res = NIL, lvl = NIL;
+        node = BIF_ARG_1;
+
+        ASSERT(is_boxed(node));
+        ptr = boxed_val(node);
+        ASSERT(is_header(ptr[0]));
+        ASSERT(is_hashmap_header_head(ptr[0]));
+        ASSERT(ptr[1] != 0);
+
+        hp  = HAllocX(BIF_P, 4, HALLOC_EXTRA);
+	lvl = CONS(hp, node, make_small(0)); hp += 2;
+	res = CONS(hp, lvl, res); hp += 2;
+
+        ptr++;
+        for (;;) {
+            node = ptr[1];
+            if (is_list(node)) { /* LEAF NODE [K|V] */
+                ptr   = list_val(node);
+                hp    = HAlloc(BIF_P, 3 + 2);
+                res   = CONS(hp, node, res); hp += 2;
+                hp[0] = make_arityval(2);
+                hp[1] = BIF_ARG_1;
+                hp[2] = res;
+                BIF_RET(make_tuple(hp));
+            }
+
+            ASSERT(is_boxed(node));
+            ptr = boxed_val(node);
+            ASSERT(is_header(ptr[0]));
+            ASSERT(!is_hashmap_header_head(ptr[0]));
+
+            hp  = HAllocX(BIF_P, 4, HALLOC_EXTRA);
+            lvl = CONS(hp, node, make_small(0)); hp += 2;
+            res = CONS(hp, lvl, res); hp += 2;
+        }
+    }
+
+    BIF_ERROR(BIF_P, BADARG);
+}
+
+BIF_RETTYPE maps_next_1(BIF_ALIST_1) {
+    if (is_tuple(BIF_ARG_1)) {
+        Eterm *tp = tuple_val(BIF_ARG_1);
+
+        if (arityval(*tp) != 2)
+            goto error;
+        
+        if (is_flatmap(tp[1]) && is_small(tp[2])) {
+            Eterm *ks, *vs, *hp, iter;
+            flatmap_t *mp;
+            Uint n;
+            Sint i;
+            mp = (flatmap_t *)flatmap_val(tp[1]);
+            n  = flatmap_get_size(mp);
+            i  = signed_val(tp[2]);
+
+            if (i >= n)
+                BIF_RET(am_none);
+
+            ks = flatmap_get_keys(mp);
+            vs = flatmap_get_values(mp);
+
+            hp    = HAlloc(BIF_P, 3 + 4);
+            iter  = make_tuple(hp);
+            hp[0] = make_arityval(2);
+            hp[1] = tp[1];
+            hp[2] = make_small(i + 1);
+            hp   += 3;
+            hp[0] = make_arityval(3);
+            hp[1] = ks[i];
+            hp[2] = vs[i];
+            hp[3] = iter;
+
+            BIF_RET(make_tuple(hp));
+        }
+
+        /* stack
+         * [ [node()|slot()], [node()|slot()] ,.. ].
+         */
+
+        if (is_hashmap(tp[1]) && is_list(tp[2])) {
+            Eterm node, *hp, *ptr, hdr, lvl, k, v;
+            Uint32 hval;
+            Eterm s = tp[2];
+            Sint i;
+            Uint n;
+
+            ptr = list_val(s);
+            k   = CAR(list_val(CAR(ptr)));
+            v   = CDR(list_val(CAR(ptr)));
+            s   = CDR(ptr);
+
+            while(s != NIL) {
+                ptr  = list_val(s);
+                s    = CDR(ptr);
+                lvl  = CAR(ptr);
+                i    = signed_val(CDR(list_val(lvl)));
+                node = CAR(list_val(lvl));
+                ptr  = boxed_val(node);
+                hdr  = *ptr;
+                hval = MAP_HEADER_VAL(hdr);
+                n    = hashmap_bitcount(hval);
+
+                i++;
+                if (i < n) {
+                    if (is_hashmap_header_head(hdr))
+                        ptr++; /* skip size word */
+                    goto find_leaf;
+                }
+            }
+
+            hp    = HAlloc(BIF_P, 3 + 4);
+            hp[0] = make_arityval(2);
+            hp[1] = tp[1];
+            hp[2] = NIL;
+            lvl   = make_tuple(hp);
+            hp   += 3;
+            hp[0] = make_arityval(3);
+            hp[1] = k;
+            hp[2] = v;
+            hp[3] = lvl;
+            BIF_RET(make_tuple(hp));
+
+find_leaf:
+            hp  = HAllocX(BIF_P, 4, HALLOC_EXTRA);
+            lvl = CONS(hp, node, make_small(i)); hp += 2;
+            s   = CONS(hp, lvl, s); hp += 2;
+
+            for (;;) {
+                node = ptr[i + 1];
+                if (is_list(node)) {
+                    ptr   = list_val(node);
+                    hp    = HAlloc(BIF_P, 2 + 3 + 4);
+                    s     = CONS(hp, node, s); hp += 2;
+                    hp[0] = make_arityval(2);
+                    hp[1] = tp[1];
+                    hp[2] = s;
+                    lvl   = make_tuple(hp);
+                    hp   += 3;
+                    hp[0] = make_arityval(3);
+                    hp[1] = k;
+                    hp[2] = v;
+                    hp[3] = lvl;
+                    BIF_RET(make_tuple(hp));
+                }
+
+                ASSERT(is_boxed(node));
+                ptr = boxed_val(node);
+                ASSERT(is_header(ptr[0]));
+                ASSERT(!is_hashmap_header_head(ptr[0]));
+
+                hp  = HAllocX(BIF_P, 4, HALLOC_EXTRA);
+                lvl = CONS(hp, node, make_small(0)); hp += 2;
+                s   = CONS(hp, lvl, s); hp += 2;
+                i   = 0;
+            }
+        }
+        if (is_hashmap(tp[1]) && is_nil(tp[2]))
+            BIF_RET(am_none);
+    }
+error:
+    BIF_ERROR(BIF_P, BADARG);
+}
+#undef HALLOC_EXTRA
+
+/* simple iterator */
 
 BIF_RETTYPE maps_first_key_1(BIF_ALIST_1) {
     Eterm *hp, res;
