@@ -409,6 +409,7 @@ erts_sys_pre_init(void)
 #ifdef ERTS_THR_HAVE_SIG_FUNCS
     sigemptyset(&thr_create_sigmask);
     sigaddset(&thr_create_sigmask, SIGINT);   /* block interrupt */
+    sigaddset(&thr_create_sigmask, SIGHUP);   /* block sighups */
     sigaddset(&thr_create_sigmask, SIGUSR1);  /* block user defined signal */
 #endif
 
@@ -746,9 +747,49 @@ static RETSIGTYPE do_quit(int signum)
 #endif
 }
 
+static void sighup_requested(void) {
+    Process* p = NULL;
+    Eterm id;
+    ErtsProcLocks locks = 0;
+    int is_scheduler;
+
+    id = erts_whereis_name_to_id(NULL, am_erl_signal_server);
+    is_scheduler = erts_get_scheduler_id() > 0;
+    if ((p = (is_scheduler ? erts_proc_lookup(id)
+                           : erts_pid2proc_opt(NULL,
+                                               0,
+                                               id,
+                                               0,
+                                               ERTS_P2P_FLG_INC_REFC))) != NULL) {
+        ErtsMessage *msgp = erts_alloc_message(0, NULL);
+        erts_queue_message(p, locks, msgp, am_sighup, am_system);
+
+#ifdef ERTS_SMP
+        if (locks)
+            erts_smp_proc_unlock(p, locks);
+        if (!is_scheduler)
+            erts_proc_dec_refc(p);
+#endif
+    }
+}
+
+#if (defined(SIG_SIGSET) || defined(SIG_SIGNAL))
+static RETSIGTYPE request_sighup(void)
+#else
+static RETSIGTYPE request_sighup(int signum)
+#endif
+{
+#ifdef ERTS_SMP
+    smp_sig_notify('H');
+#else
+    sighup_requested();
+#endif
+}
+
 /* Disable break */
 void erts_set_ignore_break(void) {
     sys_signal(SIGINT,  SIG_IGN);
+    sys_signal(SIGHUP,  SIG_IGN);
     sys_signal(SIGQUIT, SIG_IGN);
     sys_signal(SIGTSTP, SIG_IGN);
 }
@@ -774,6 +815,7 @@ void erts_replace_intr(void) {
 void init_break_handler(void)
 {
    sys_signal(SIGINT, request_break);
+   sys_signal(SIGHUP, request_sighup);
 #ifndef ETHR_UNUSABLE_SIGUSRX
    sys_signal(SIGUSR1, user_signal1);
 #endif /* #ifndef ETHR_UNUSABLE_SIGUSRX */
@@ -1286,6 +1328,8 @@ signal_dispatcher_thread_func(void *unused)
 	     */
 	    switch (buf[i]) {
 	    case 0: /* Emulator initialized */
+            case 'H': /* SIGHUP */
+                sighup_requested();
                 break;
 	    case 'I': /* SIGINT */
 		break_requested();
