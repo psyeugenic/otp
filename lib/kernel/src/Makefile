@@ -71,6 +71,7 @@ MODULES = \
 	erl_distribution \
 	erl_epmd \
 	erl_reply \
+	erl_signal_server \
 	erts_debug \
 	error_handler \
 	error_logger \

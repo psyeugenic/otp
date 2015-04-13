@@ -131,6 +131,8 @@ init([]) ->
 		      permanent, 2000, worker, [inet_db]},
 	    NetSup = {net_sup, {erl_distribution, start_link, []}, 
 		      permanent, infinity, supervisor,[erl_distribution]},
+	    SigSrv = {erl_signal_server, {erl_signal_server, start_link, []},
+		      permanent, 2000, worker, [erl_signal_server]},
 	    DistAC = start_dist_ac(),
 
 	    Timer = start_timer(),
@@ -141,7 +143,7 @@ init([]) ->
 			      permanent, infinity, supervisor, [?MODULE]},
 	    {ok, {SupFlags,
 		  [Code, Rpc, Global, InetDb | DistAC] ++
-		  [NetSup, Glo_grp, File,
+		  [NetSup, Glo_grp, File, SigSrv,
 		   StdError, User, Config, SafeSupervisor] ++ Timer}}
     end;
 init(safe) ->
