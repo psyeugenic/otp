@@ -2120,6 +2120,10 @@ expr({record,Line,Rec,Name,Upds}, Vt, St0) ->
         true -> {[],add_error(Line, {wildcard_in_update,Name}, St2)};
         false -> {vtmerge(Rvt, Usvt),St2}
     end;
+expr({seq,_Line,From,To},Vt,St) ->
+    check_seq_expr([From,To],Vt,St);
+expr({seq,_Line,From,Step,To},Vt,St) ->
+    check_seq_expr([From,Step,To],Vt,St);
 expr({bin,_Line,Fs}, Vt, St) ->
     expr_bin(Fs, Vt, St, fun expr/3);
 expr({block,_Line,Es}, Vt, St) ->
@@ -2298,6 +2302,10 @@ expr_list(Es, Vt, St) ->
 record_expr(Line, Rec, Vt, St0) ->
     St1 = warn_invalid_record(Line, Rec, St0),
     expr(Rec, Vt, St1).
+
+check_seq_expr(Es,Vt,St0) ->
+    %{[],add_error(Line, {wildcard_in_update,Name}, St2)};
+    expr_list(Es,Vt,St0).
 
 check_assoc_fields([{map_field_exact,Line,_,_}|Fs], St) ->
     check_assoc_fields(Fs, add_error(Line, illegal_map_construction, St));
