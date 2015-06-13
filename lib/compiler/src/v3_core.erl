@@ -99,6 +99,7 @@
 -record(imatch,    {anno=#a{},pat,guard=[],arg,fc}).
 -record(iprimop,   {anno=#a{},name,args}).
 -record(iprotect,  {anno=#a{},body}).
+-record(irange,    {anno=#a{},from,to,step}).
 -record(ireceive1, {anno=#a{},clauses}).
 -record(ireceive2, {anno=#a{},clauses,timeout,action}).
 -record(iset,      {anno=#a{},var,arg}).
@@ -527,6 +528,39 @@ expr({cons,L,H0,T0}, St0) ->
     {T1,Tps,St2} = safe(T0, St1),
     A = full_anno(L, St2),
     {annotate_cons(A, H1, T1, St2),Hps ++ Tps,St2};
+expr({seq,L,F0,T0}, St0) ->
+    {F1,Fps,St1} = safe(F0, St0),
+    {T1,Tps,St2} = safe(T0, St1),
+    {Inc,St3} = new_var(St2),
+    Lanno = lineno_anno(L, St3),
+    Fc = fail_clause([], Lanno, cerl:abstract(case_clause)),
+    Case = #icase{anno=#a{anno=Lanno},args=[],
+                  clauses=[#iclause{anno=#a{anno=Lanno},
+                                    pats=[],
+                                    guard=[#icall{anno=#a{anno=Lanno},
+                                                  module=cerl:abstract(erlang),
+                                                  name=cerl:abstract('<'),
+                                                  args=[F1,T1]}],
+                                    body=[cerl:abstract(1)]},
+                           #iclause{anno=#a{anno=Lanno},
+                                    pats=[],
+                                    guard=[cerl:abstract(true)],
+                                    body=[cerl:abstract(-1)]}],
+                  fc=Fc},
+    Pre=[#iset{var=Inc,arg=Case}],
+    {#irange{anno=#a{anno=Lanno},from=F1,to=T1,step=Inc},Fps++Tps++Pre,St3};
+expr({seq,L,F0,S0,T0}, St0) ->
+    {F1,Fps,St1} = safe(F0, St0),
+    {S1,Sps,St2} = safe(S0, St1),
+    {T1,Tps,St3} = safe(T0, St2),
+    Lanno = lineno_anno(L, St0),
+    {Inc,St4} = new_var(St3),
+    Pre = [#iset{var=Inc,
+                 arg=#icall{anno=#a{anno=Lanno},
+                            module=cerl:abstract(erlang),
+                            name=cerl:abstract('-'),
+                            args=[S1,F1]}}],
+    {#irange{anno=#a{anno=Lanno},from=F1,to=T1,step=Inc},Fps++Sps++Tps++Pre,St4};
 expr({lc,L,E,Qs0}, St0) ->
     {Qs1,St1} = preprocess_quals(L, Qs0, St0),
     lc_tq(L, E, Qs1, #c_literal{anno=lineno_anno(L, St1),val=[]}, St1);
@@ -1950,6 +1984,9 @@ uexpr(#itry{anno=A,args=As0,vars=Vs,body=Bs0,evars=Evs,handler=Hs0}, Ks, St0) ->
 uexpr(#icatch{anno=A,body=Es0}, Ks, St0) ->
     {Es1,St1} = uexprs(Es0, Ks, St0),
     {#icatch{anno=A#a{us=used_in_any(Es1)},body=Es1},St1};
+uexpr(#irange{anno=A,from=F,to=T,step=S},_,St) ->
+    Used = union([lit_vars(F),lit_vars(T),lit_vars(S)]),
+    {#irange{anno=A#a{us=Used},from=F,to=T,step=S},St};
 uexpr(#ireceive1{anno=A,clauses=Cs0}, Ks, St0) ->
     {Cs1,St1} = uclauses(Cs0, Ks, St0),
     {#ireceive1{anno=A#a{us=used_in_any(Cs1),ns=new_in_all(Cs1)},
@@ -2210,6 +2247,10 @@ cexpr(#icase{anno=A,args=Largs,clauses=Lcs,fc=Lfc}, As, St0) ->
     {#c_case{anno=A#a.anno,
 	     arg=core_lib:make_values(Cargs),clauses=Ccs ++ [Cfc]},
      Exp,A#a.us,St3};
+cexpr(#irange{anno=A,from=F,to=T,step=S},_As,St) ->
+    {#c_call{anno=A#a.anno,
+             module=cerl:abstract(erlang),
+             name=cerl:abstract(seq),args=[F,T,S]},[],A#a.us,St};
 cexpr(#ireceive1{anno=A,clauses=Lcs}, As, St0) ->
     Exp = intersection(A#a.ns, As),		%Exports
     {Ccs,St1} = cclauses(Lcs, Exp, St0),
@@ -2358,6 +2399,8 @@ is_simple(#c_var{}) -> true;
 is_simple(#c_literal{}) -> true;
 is_simple(#c_cons{hd=H,tl=T}) ->
     is_simple(H) andalso is_simple(T);
+is_simple(#c_range{from=F,to=T,step=S}) ->
+    is_simple_list([F,T,S]);
 is_simple(#c_tuple{es=Es}) -> is_simple_list(Es);
 is_simple(#c_map{es=Es}) -> is_simple_list(Es);
 is_simple(#c_map_pair{key=K,val=V}) ->

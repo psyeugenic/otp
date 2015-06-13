@@ -92,6 +92,11 @@
 		    timeout,		% timeout :: Tree,
 		    action}).		% action :: Tree
 
+-record(c_range, {anno=[],
+                  from,                 % from :: Tree,
+                  step,                 % step :: Tree,
+                  to}).                 % to :: Tree
+
 -record(c_seq, {anno=[], arg,		% arg :: Tree,
 		body}).			% body :: Tree
 
