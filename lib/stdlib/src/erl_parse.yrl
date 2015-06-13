@@ -35,6 +35,7 @@ tuple
 %struct
 record_expr record_tuple record_field record_fields
 map_expr map_tuple map_field map_field_assoc map_field_exact map_fields map_key
+seq_expr
 if_expr if_clause if_clauses case_expr cr_clause cr_clauses receive_expr
 fun_expr fun_clause fun_clauses atom_or_var integer_or_var
 try_expr try_catch try_clause try_clauses
@@ -273,6 +274,7 @@ expr_max -> tuple : '$1'.
 %%expr_max -> struct : '$1'.
 expr_max -> '(' expr ')' : '$2'.
 expr_max -> 'begin' exprs 'end' : {block,?anno('$1'),'$2'}.
+expr_max -> seq_expr : '$1'.
 expr_max -> if_expr : '$1'.
 expr_max -> case_expr : '$1'.
 expr_max -> receive_expr : '$1'.
@@ -287,6 +289,8 @@ tail -> ']' : {nil,?anno('$1')}.
 tail -> '|' expr ']' : '$2'.
 tail -> ',' expr tail : {cons,?anno('$2'),'$2','$3'}.
 
+seq_expr -> '[' expr '..' expr ']' : {seq, ?anno('$1'), '$2', '$4'}.
+seq_expr -> '[' expr ',' expr '..' expr ']' : {seq, ?anno('$1'), '$2', '$4', '$6'}.
 
 binary -> '<<' '>>' : {bin,?anno('$1'),[]}.
 binary -> '<<' bin_elements '>>' : {bin,?anno('$1'),'$2'}.
