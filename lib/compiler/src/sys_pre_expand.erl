@@ -356,6 +356,15 @@ expr({bc,Line,E0,Qs0}, St0) ->
     {Qs1,St1} = lc_tq(Line, Qs0, St0),
     {E1,St2} = expr(E0, St1),
     {{bc,Line,E1,Qs1},St2};
+expr({seq,Line,F0,T0}, St0) ->
+    {F1,St1} = expr(F0, St0),
+    {T1,St2} = expr(T0, St1),
+    {{seq,Line,F1,T1},St2};
+expr({seq,Line,F0,S0,T0}, St0) ->
+    {F1,St1} = expr(F0, St0),
+    {S1,St2} = expr(S0, St1),
+    {T1,St3} = expr(T0, St2),
+    {{seq,Line,F1,S1,T1},St3};
 expr({tuple,Line,Es0}, St0) ->
     {Es1,St1} = expr_list(Es0, St0),
     {{tuple,Line,Es1},St1};
