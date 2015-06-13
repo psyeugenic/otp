@@ -227,6 +227,18 @@ expr({cons,_,H0,T0}, Bs0, Lf, Ef, RBs) ->
     {value,H,Bs1} = expr(H0, Bs0, Lf, Ef, none),
     {value,T,Bs2} = expr(T0, Bs0, Lf, Ef, none),
     ret_expr([H|T], merge_bindings(Bs1, Bs2), RBs);
+expr({seq,_,F0,T0}, Bs0, Lf, Ef, RBs) ->
+    {value,F,Bs1} = expr(F0, Bs0, Lf, Ef, none),
+    {value,T,Bs2} = expr(T0, Bs0, Lf, Ef, none),
+    Inc = if T > F ->  1;
+             true  -> -1
+          end,
+    ret_expr(lists:seq(F,T,Inc), merge_bindings(Bs1, Bs2), RBs);
+expr({seq,_,F0,S0,T0}, Bs0, Lf, Ef, RBs) ->
+    {value,F,Bs1} = expr(F0, Bs0, Lf, Ef, none),
+    {value,S,Bs2} = expr(S0, Bs0, Lf, Ef, none),
+    {value,T,Bs3} = expr(T0, Bs0, Lf, Ef, none),
+    ret_expr(lists:seq(F,T,S-F), merge_bindings(merge_bindings(Bs1, Bs2),Bs3), RBs);
 expr({lc,_,E,Qs}, Bs, Lf, Ef, RBs) ->
     eval_lc(E, Qs, Bs, Lf, Ef, RBs);
 expr({bc,_,E,Qs}, Bs, Lf, Ef, RBs) ->
