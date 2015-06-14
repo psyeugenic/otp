@@ -4743,6 +4743,39 @@ BIF_RETTYPE erts_internal_cmp_term_2(BIF_ALIST_2) {
     }
     BIF_RET(make_small(0));
 }
+
+BIF_RETTYPE seq_3(BIF_ALIST_3) {
+    if (is_integer(BIF_ARG_1) && is_integer(BIF_ARG_2) && is_integer(BIF_ARG_3)) {
+        Sint from = signed_val(BIF_ARG_1);
+        Sint to = signed_val(BIF_ARG_2);
+        Sint step = signed_val(BIF_ARG_3);
+        Uint n;
+        Eterm *hp, res = NIL;
+
+        if (step == 0)
+            goto error;
+        if (from < to && step < 0)
+            goto error;
+        if (from > to && step > 0)
+            goto error;
+
+        /* adjust 'to' according to 'step' and 'from' */
+        to -= (to - from) % step;
+
+        n = (1 + (to - from) / step);
+        hp = HAlloc(BIF_P, n*2);
+
+        while(n--) {
+            res = CONS(hp, make_small(to), res);
+            hp += 2;
+            to -= step;
+        }
+
+        BIF_RET(res);
+    }
+error:
+    BIF_ERROR(BIF_P, BADARG);
+}
 /*
  * Processes doing yield on return in a bif ends up in bif_return_trap().
  */

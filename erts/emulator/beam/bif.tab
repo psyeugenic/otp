@@ -637,6 +637,7 @@ bif erlang:get_keys/0
 bif ets:update_counter/4
 bif erts_debug:map_info/1
 
+bif erlang:seq/3
 #
 # Obsolete
 #
