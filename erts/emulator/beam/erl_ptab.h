@@ -105,6 +105,8 @@ typedef struct {
     Uint32 dix_cl_shift;
     Uint32 dix_cli_mask;
     Uint32 dix_cli_shift;
+    Uint32 data_shift;
+    Uint32 data_size;
     ErtsPTabElementCommon *invalid_element;
     Eterm invalid_data;
     void (*release_element)(void *);
@@ -139,8 +141,6 @@ typedef struct {
     } r;
 } ErtsPTab;
 
-#define ERTS_PTAB_ID_DATA_SIZE	28
-#define ERTS_PTAB_ID_DATA_SHIFT	(_TAG_IMMED1_SIZE)
 /* ERTS_PTAB_MAX_SIZE must be a power of 2 */
 #define ERTS_PTAB_MAX_SIZE (SWORD_CONSTANT(1) << 27)
 #if (ERTS_PTAB_MAX_SIZE-1) > MAX_SMALL
@@ -148,25 +148,9 @@ typedef struct {
 #endif
 
 
-/*
- * Currently pids and ports are allowed.
- */
-#if _PID_DATA_SIZE != ERTS_PTAB_ID_DATA_SIZE
-# error "Unexpected pid data size"
-#endif
-#if _PID_DATA_SHIFT != ERTS_PTAB_ID_DATA_SHIFT
-# error "Unexpected pid tag size"
-#endif
-#if _PORT_DATA_SIZE != ERTS_PTAB_ID_DATA_SIZE
-# error "Unexpected port data size"
-#endif
-#if _PORT_DATA_SHIFT != ERTS_PTAB_ID_DATA_SHIFT
-# error "Unexpected port tag size"
-#endif
-
-#define ERTS_PTAB_INVALID_ID(TAG)					\
+#define ERTS_PTAB_INVALID_ID(TAG, DATA_SIZE, DATA_SHIFT)	        \
     ((Eterm)								\
-     ((((1 << ERTS_PTAB_ID_DATA_SIZE) - 1) << ERTS_PTAB_ID_DATA_SHIFT)	\
+     ((((1 << (DATA_SIZE)) - 1) << (DATA_SHIFT))	                \
       | (TAG)))
 
 #define erts_ptab_is_valid_id(ID)					\
@@ -181,7 +165,9 @@ void erts_ptab_init_table(ErtsPTab *ptab,
 			  UWord element_size,
 			  char *name,
 			  int legacy,
-			  int atomic_refc);
+                          Uint32 data_size,
+                          Uint32 data_shift,
+                          int atomic_refc);
 int erts_ptab_new_element(ErtsPTab *ptab,
 			  ErtsPTabElementCommon *ptab_el,
 			  void *init_arg,
@@ -293,8 +279,8 @@ erts_ptab_make_id(ErtsPTab *ptab, Eterm data, Eterm tag)
 {
     HUint huint;
     Uint32 low_data = (Uint32) data;
-    low_data &= (1 << ERTS_PTAB_ID_DATA_SIZE) - 1;
-    low_data <<= ERTS_PTAB_ID_DATA_SHIFT;
+    low_data &= (1 << ptab->r.o.data_size) - 1;
+    low_data <<= ptab->r.o.data_shift;
     huint.hval[ERTS_HUINT_HVAL_HIGH] = erts_ptab_data2pix(ptab, data);
     huint.hval[ERTS_HUINT_HVAL_LOW] = low_data | ((Uint32) tag);
     return (Eterm) huint.val;
@@ -313,7 +299,7 @@ erts_ptab_id2data(ErtsPTab *ptab, Eterm id)
 {
     HUint huint;
     huint.val = id;
-    return (Uint) (huint.hval[ERTS_HUINT_HVAL_LOW] >> ERTS_PTAB_ID_DATA_SHIFT);
+    return (Uint) (huint.hval[ERTS_HUINT_HVAL_LOW] >> ptab->r.o.data_shift);
 }
 
 #elif ERTS_SIZEOF_TERM == 4

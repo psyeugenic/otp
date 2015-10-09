@@ -329,8 +329,8 @@ last_data_cmp(Uint64 ld1, Uint64 ld2)
 	return (ld1_wrap <= ld2 && ld2 < ld1) ? 1 : -1;
 }
 
-#define ERTS_PTAB_LastData2EtermData(LD) \
-    ((Eterm) ((LD) & ~(~((Uint64) 0) << ERTS_PTAB_ID_DATA_SIZE)))
+#define ERTS_PTAB_LastData2EtermData(PTAB, LD) \
+    ((Eterm) ((LD) & ~(~((Uint64) 0) << (PTAB)->r.o.data_size)))
 
 static ERTS_INLINE Uint32
 ix_to_free_id_data_ix(ErtsPTab *ptab, Uint32 ix)
@@ -362,6 +362,8 @@ erts_ptab_init_table(ErtsPTab *ptab,
 		     UWord element_size,
 		     char *name,
 		     int legacy,
+                     Uint32 data_size,
+                     Uint32 data_shift,
 		     int atomic_refc)
 {
     size_t tab_sz, alloc_sz;
@@ -386,6 +388,8 @@ erts_ptab_init_table(ErtsPTab *ptab,
 
     ptab->r.o.element_size = element_size;
     ptab->r.o.max = size;
+    ptab->r.o.data_size = data_size;
+    ptab->r.o.data_shift = data_shift;
 
     tab_sz = ERTS_ALC_CACHE_LINE_ALIGN_SIZE(size*sizeof(erts_smp_atomic_t));
     alloc_sz = tab_sz;
@@ -569,7 +573,7 @@ erts_ptab_new_element(ErtsPTab *ptab,
 	/* Reserve slot */
 	while (1) {
 	    ld++;
-	    pix = erts_ptab_data2pix(ptab, ERTS_PTAB_LastData2EtermData(ld));
+	    pix = erts_ptab_data2pix(ptab, ERTS_PTAB_LastData2EtermData(ptab,ld));
 	    if (erts_smp_atomic_read_nob(&ptab->r.o.tab[pix])
 		== ERTS_AINT_NULL) {
 		erts_aint_t val;
@@ -587,14 +591,14 @@ erts_ptab_new_element(ErtsPTab *ptab,
 	    }
 	}
 
-	data = ERTS_PTAB_LastData2EtermData(ld);
+	data = ERTS_PTAB_LastData2EtermData(ptab, ld);
 
 	if (data == ptab->r.o.invalid_data) {
 	    /* Do not use invalid data; fix it... */
 	    ld += ptab->r.o.max;
 	    ASSERT(pix == erts_ptab_data2pix(ptab,
-					     ERTS_PTAB_LastData2EtermData(ld)));
-	    data = ERTS_PTAB_LastData2EtermData(ld);
+					     ERTS_PTAB_LastData2EtermData(ptab,ld)));
+	    data = ERTS_PTAB_LastData2EtermData(ptab,ld);
 	    ASSERT(data != ptab->r.o.invalid_data);
 	}
 
@@ -693,10 +697,10 @@ erts_ptab_delete_element(ErtsPTab *ptab,
 	/* Next data for this slot... */
 	data = (Uint32) erts_ptab_id2data(ptab, ptab_el->id);
 	data += ptab->r.o.max;
-	data &= ~(~((Uint32) 0) << ERTS_PTAB_ID_DATA_SIZE);
+	data &= ~(~((Uint32) 0) << ptab->r.o.data_size);
 	if (data == ptab->r.o.invalid_data) { /* make sure not invalid */
 	    data += ptab->r.o.max;
-	    data &= ~(~((Uint32) 0) << ERTS_PTAB_ID_DATA_SIZE);
+	    data &= ~(~((Uint32) 0) << ptab->r.o.data_size);
 	}
 	ASSERT(data != ptab->r.o.invalid_data);
 	ASSERT(pix == erts_ptab_data2pix(ptab, data));
@@ -1370,10 +1374,10 @@ erts_ptab_test_next_id(ErtsPTab *ptab, int set, Uint next)
 	    for (i=0; i <= max_ix; ++i) {
 		Uint32 pix;
 		++num;
-		num &= ~(~((Uint32) 0) << ERTS_PTAB_ID_DATA_SIZE);
+		num &= ~(~((Uint32) 0) << ptab->r.o.data_size);
 		if (num == ptab->r.o.invalid_data) {
 		    num += ptab->r.o.max;
-		    num &= ~(~((Uint32) 0) << ERTS_PTAB_ID_DATA_SIZE);
+		    num &= ~(~((Uint32) 0) << ptab->r.o.data_size);
 		}
 		pix = erts_ptab_data2pix(ptab, num);
 		if (ERTS_AINT_NULL == erts_ptab_pix2intptr_nob(ptab, pix)) {
@@ -1407,12 +1411,12 @@ erts_ptab_test_next_id(ErtsPTab *ptab, int set, Uint next)
 	else {
 
 	    ld = (Uint64) next;
-	    data = ERTS_PTAB_LastData2EtermData(ld);
+	    data = ERTS_PTAB_LastData2EtermData(ptab,ld);
 	    if (ptab->r.o.invalid_data == data) {
 		ld += ptab->r.o.max;
 		ASSERT(erts_ptab_data2pix(ptab, data)
 		       == erts_ptab_data2pix(ptab,
-					     ERTS_PTAB_LastData2EtermData(ld)));
+					     ERTS_PTAB_LastData2EtermData(ptab,ld)));
 	    }
 	    last_data_set_relb(ptab, ld);
 	}
@@ -1428,13 +1432,13 @@ erts_ptab_test_next_id(ErtsPTab *ptab, int set, Uint next)
 		break;
 	    }
 	    if (ERTS_AINT_NULL == erts_ptab_pix2intptr_nob(ptab, pix)) {
-		data = ERTS_PTAB_LastData2EtermData(ld);
+		data = ERTS_PTAB_LastData2EtermData(ptab,ld);
 		if (ptab->r.o.invalid_data == data) {
 		    ld += ptab->r.o.max;
 		    ASSERT(erts_ptab_data2pix(ptab, data)
 			   == erts_ptab_data2pix(ptab,
-						 ERTS_PTAB_LastData2EtermData(ld)));
-		    data = ERTS_PTAB_LastData2EtermData(ld);
+						 ERTS_PTAB_LastData2EtermData(ptab,ld)));
+		    data = ERTS_PTAB_LastData2EtermData(ptab,ld);
 		}
 		res = data;
 		break;

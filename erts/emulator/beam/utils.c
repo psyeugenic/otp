@@ -1503,12 +1503,12 @@ make_hash2(Eterm term)
 		/* Only 15 bits are hashed. */
 		UINT32_HASH(internal_pid_number(term), HCONST_5);
 		goto hash2_common;
-	    case _TAG_IMMED1_PORT:
-		/* Only 15 bits are hashed. */
-		UINT32_HASH(internal_port_number(term), HCONST_6);
-		goto hash2_common;
 	    case _TAG_IMMED1_IMMED2:
 		switch (term & _TAG_IMMED2_MASK) {
+                case _TAG_IMMED2_PORT:
+                    /* Only 15 bits are hashed. */
+                    UINT32_HASH(internal_port_number(term), HCONST_6);
+                    goto hash2_common;
 		case _TAG_IMMED2_ATOM:
 		    if (hash == 0)
 			/* Fast, but the poor hash value should be mixed. */
@@ -3105,24 +3105,6 @@ tailrecur_ne:
     switch (primary_tag(a)) {
     case TAG_PRIMARY_IMMED1:
 	switch ((a & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
-	case (_TAG_IMMED1_PORT >> _TAG_PRIMARY_SIZE):
-	    if (is_internal_port(b)) {
-		bnode = erts_this_node;
-		bdata = internal_port_data(b);
-	    } else if (is_external_port(b)) {
-		bnode = external_port_node(b);
-		bdata = external_port_data(b);
-	    } else {
-		a_tag = PORT_DEF;
-		goto mixed_types;
-	    }
-	    anode = erts_this_node;
-	    adata = internal_port_data(a);
-		
-	port_common:
-	    CMP_NODES(anode, bnode);
-	    ON_CMP_GOTO((Sint)(adata - bdata));
-
 	case (_TAG_IMMED1_PID >> _TAG_PRIMARY_SIZE):
 	    if (is_internal_pid(b)) {
 		bnode = erts_this_node;
@@ -3147,7 +3129,25 @@ tailrecur_ne:
 	    a_tag = SMALL_DEF;
 	    goto mixed_types;
 	case (_TAG_IMMED1_IMMED2 >> _TAG_PRIMARY_SIZE): {
-	    switch ((a & _TAG_IMMED2_MASK) >> _TAG_IMMED1_SIZE) {
+            switch ((a & _TAG_IMMED2_MASK) >> _TAG_IMMED1_SIZE) {
+            case (_TAG_IMMED2_PORT >> _TAG_IMMED1_SIZE):
+                if (is_internal_port(b)) {
+                    bnode = erts_this_node;
+                    bdata = internal_port_data(b);
+                } else if (is_external_port(b)) {
+                    bnode = external_port_node(b);
+                    bdata = external_port_data(b);
+                } else {
+                    a_tag = PORT_DEF;
+                    goto mixed_types;
+                }
+                anode = erts_this_node;
+                adata = internal_port_data(a);
+
+            port_common:
+                CMP_NODES(anode, bnode);
+                ON_CMP_GOTO((Sint)(adata - bdata));
+
 	    case (_TAG_IMMED2_ATOM >> _TAG_IMMED1_SIZE):
 		a_tag = ATOM_DEF;
 		goto mixed_types;

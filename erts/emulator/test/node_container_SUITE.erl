@@ -114,7 +114,8 @@ end_per_testcase(_Case, Config) when is_list(Config) ->
 %%% The test cases -------------------------------------------------------------
 %%%
 
--define(MAX_PIDS_PORTS, ((1 bsl 28) - 1)).
+max_pids_ports(pid)  -> ((1 bsl 28) - 1);
+max_pids_ports(port) -> ((1 bsl 26) - 1).
 
 %%
 %% Test case: term_to_binary_to_term_eq
@@ -129,7 +130,7 @@ term_to_binary_to_term_eq(Config) when is_list(Config) ->
     ?line LPid = self(),
     ?line LXPid = mk_pid(ThisNode, 32767, 8191),
     ?line LPort = hd(erlang:ports()),
-    ?line LXPort = mk_port(ThisNode, 268435455),
+    ?line LXPort = mk_port(ThisNode, max_pids_ports(port)),
     ?line LLRef = make_ref(),
     ?line LHLRef = mk_ref(ThisNode, [47, 11]),
     ?line LSRef = mk_ref(ThisNode, [4711]),
@@ -184,7 +185,7 @@ round_trip_eq(Config) when is_list(Config) ->
     ?line SentPid = self(),
     ?line SentXPid = mk_pid(ThisNode, 17471, 8190),
     ?line SentPort = hd(erlang:ports()),
-    ?line SentXPort = mk_port(ThisNode, 268435451),
+    ?line SentXPort = mk_port(ThisNode, max_pids_ports(port)-4),
     ?line SentLRef = make_ref(),
     ?line SentHLRef = mk_ref(ThisNode, [4711, 17]),
     ?line SentSRef = mk_ref(ThisNode, [4711]),
@@ -784,20 +785,20 @@ pp_wrap(What) ->
     ?line ?t:format("post creations = ~p~n", [PostCre]),
     ?line true = is_integer(PostCre),
     ?line true = PreCre > PostCre,
-    ?line Now = set_next_id(What, ?MAX_PIDS_PORTS div 2),
+    ?line Now = set_next_id(What, max_pids_ports(What) div 2),
     ?line ?t:format("reset to = ~p~n", [Now]),
     ?line true = is_integer(Now),
     ?line ok.
 
 set_high_pp_next(What) ->
-    ?line set_high_pp_next(What, ?MAX_PIDS_PORTS-1).
+    ?line set_high_pp_next(What, max_pids_ports(What)-1).
     
 set_high_pp_next(What, N) ->
     ?line M = set_next_id(What, N),
     ?line true = is_integer(M),
-    ?line case {M >= N, M =< ?MAX_PIDS_PORTS} of
+    ?line case {M >= N, M =< max_pids_ports(What)} of
 	      {true, true} ->
-		  ?line ?MAX_PIDS_PORTS - M + 1;
+		  ?line max_pids_ports(What) - M + 1;
 	      _ ->
 		  ?line set_high_pp_next(What, N - 100)
 	  end.
@@ -829,7 +830,7 @@ bad_nc(suite) -> [];
 bad_nc(Config) when is_list(Config) ->
     % Make sure emulator don't crash on bad node containers...
     ?line MaxPidNum = (1 bsl 15) - 1,
-    ?line MaxPidSer = ?MAX_PIDS_PORTS bsr 15,
+    ?line MaxPidSer = max_pids_ports(pid) bsr 15,
     ?line MaxExtPidSer = ((1 bsl 32)-1) bsr 15,
     ?line ThisNode = {node(), erlang:system_info(creation)},
     ?line {'EXIT', {badarg, mk_pid, _}}
@@ -837,7 +838,7 @@ bad_nc(Config) when is_list(Config) ->
     ?line {'EXIT', {badarg, mk_pid, _}}
 	= (catch mk_pid(ThisNode, 4711, MaxPidSer + 1)),
     ?line {'EXIT', {badarg, mk_port, _}}
-	= (catch mk_port(ThisNode, ?MAX_PIDS_PORTS + 1)),
+	= (catch mk_port(ThisNode, max_pids_ports(port) + 1)),
     ?line {'EXIT', {badarg, mk_ref, _}}
 	= (catch mk_ref(ThisNode,[(1 bsl 18), 4711, 4711])),
     ?line {'EXIT', {badarg, mk_ref, _}}

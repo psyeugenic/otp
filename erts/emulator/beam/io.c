@@ -2784,6 +2784,8 @@ void erts_init_io(int port_tab_size,
 			 common_element_size, /* Doesn't need to be excact */
 			 "port_table",
 			 legacy_port_tab,
+                         _PORT_DATA_SIZE,
+                         _PORT_DATA_SHIFT,
 			 1);
 
     sys_init_io();

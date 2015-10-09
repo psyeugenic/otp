@@ -671,6 +671,8 @@ erts_init_process(int ncpu, int proc_tab_size, int legacy_proc_tab)
 			 sizeof(Process),
 			 "process_table",
 			 legacy_proc_tab,
+                         _PID_DATA_SIZE,
+                         _PID_DATA_SHIFT,
 #ifdef ERTS_SMP
 			 1
 #else

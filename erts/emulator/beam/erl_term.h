@@ -60,7 +60,7 @@ struct erl_node_; /* Declared in erl_node_tables.h */
 #define _TAG_IMMED1_SIZE	4
 #define _TAG_IMMED1_MASK	0xF
 #define _TAG_IMMED1_PID		((0x0 << _TAG_PRIMARY_SIZE) | TAG_PRIMARY_IMMED1)
-#define _TAG_IMMED1_PORT	((0x1 << _TAG_PRIMARY_SIZE) | TAG_PRIMARY_IMMED1)
+#define _TAG_IMMED1_FLONUM	((0x1 << _TAG_PRIMARY_SIZE) | TAG_PRIMARY_IMMED1)
 #define _TAG_IMMED1_IMMED2	((0x2 << _TAG_PRIMARY_SIZE) | TAG_PRIMARY_IMMED1)
 #define _TAG_IMMED1_SMALL	((0x3 << _TAG_PRIMARY_SIZE) | TAG_PRIMARY_IMMED1)
 
@@ -68,6 +68,7 @@ struct erl_node_; /* Declared in erl_node_tables.h */
 #define _TAG_IMMED2_MASK	0x3F
 #define _TAG_IMMED2_ATOM	((0x0 << _TAG_IMMED1_SIZE) | _TAG_IMMED1_IMMED2)
 #define _TAG_IMMED2_CATCH	((0x1 << _TAG_IMMED1_SIZE) | _TAG_IMMED1_IMMED2)
+#define _TAG_IMMED2_PORT	((0x2 << _TAG_IMMED1_SIZE) | _TAG_IMMED1_IMMED2)
 #define _TAG_IMMED2_NIL		((0x3 << _TAG_IMMED1_SIZE) | _TAG_IMMED1_IMMED2)
 
 /*
@@ -612,14 +613,14 @@ _ET_DECLARE_CHECKED(struct erl_node_*,internal_pid_node,Eterm)
 #define _PORT_NUM_SIZE		_PORT_DATA_SIZE
 #define _PORT_EXT_NUM_SIZE      (32)
 
-#define _PORT_DATA_SIZE		28
-#define _PORT_DATA_SHIFT	(_TAG_IMMED1_SIZE)
+#define _PORT_DATA_SIZE		26
+#define _PORT_DATA_SHIFT	(_TAG_IMMED2_SIZE)
 
 #define _GET_PORT_NUM(X)	_GETBITS((X), 0, _PORT_NUM_SIZE)
 #define _GET_EXT_PORT_NUM(X)	_GETBITS((X), 0, _PORT_EXT_NUM_SIZE)
 
 
-#define is_internal_port(x)	(((x) & _TAG_IMMED1_MASK) == _TAG_IMMED1_PORT)
+#define is_internal_port(x)	(((x) & _TAG_IMMED2_MASK) == _TAG_IMMED2_PORT)
 #define is_not_internal_port(x)	(!is_internal_port(x))
 
 #define _unchecked_internal_port_node(x) erts_this_node
@@ -1039,9 +1040,9 @@ _ET_DECLARE_CHECKED(Uint,catch_val,Eterm)
  */
 
 #define _LOADER_TAG_XREG _TAG_IMMED1_PID
-#define _LOADER_TAG_YREG _TAG_IMMED1_PORT
-#define _LOADER_TAG_SIZE _TAG_IMMED1_SIZE
-#define _LOADER_MASK _TAG_IMMED1_MASK
+#define _LOADER_TAG_YREG _TAG_IMMED2_PORT
+#define _LOADER_TAG_SIZE _TAG_IMMED2_SIZE
+#define _LOADER_MASK _TAG_IMMED2_MASK
 
 #define LOADER_X_REG _LOADER_TAG_XREG
 #define LOADER_Y_REG _LOADER_TAG_YREG

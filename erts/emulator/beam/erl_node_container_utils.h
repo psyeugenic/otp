@@ -183,7 +183,8 @@ extern ErtsPTab erts_proc;
 
 #define ERTS_PROC_BITS			(_PID_SER_SIZE + _PID_NUM_SIZE)
 
-#define ERTS_INVALID_PID		ERTS_PTAB_INVALID_ID(_TAG_IMMED1_PID)
+#define ERTS_INVALID_PID \
+    ERTS_PTAB_INVALID_ID(_TAG_IMMED1_PID, _PID_DATA_SIZE, _PID_DATA_SHIFT)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\
  * Ports                                                                   *
@@ -193,7 +194,7 @@ extern ErtsPTab erts_port;
 
 #define make_internal_port(D)		erts_ptab_make_id(&erts_port, \
 							  (D), \
-							  _TAG_IMMED1_PORT)
+							  _TAG_IMMED2_PORT)
 
 #define internal_port_index(PRT)	(ASSERT(is_internal_port((PRT))), \
 					 erts_ptab_id2pix(&erts_port, (PRT)))
@@ -250,7 +251,8 @@ extern ErtsPTab erts_port;
 
 #define ERTS_PORTS_BITS			(_PORT_NUM_SIZE)
 
-#define ERTS_INVALID_PORT		ERTS_PTAB_INVALID_ID(_TAG_IMMED1_PORT)
+#define ERTS_INVALID_PORT \
+    ERTS_PTAB_INVALID_ID(_TAG_IMMED2_PORT, _PORT_DATA_SIZE, _PORT_DATA_SHIFT)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\
  * Refs                                                                    *
