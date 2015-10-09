@@ -2646,7 +2646,7 @@ enc_term_int(TTBEncodeContext* ctx, ErtsAtomCacheMap *acmp, Eterm obj, byte* ep,
 	    }
 	    break;
 	case FLOAT_DEF:
-	    GET_DOUBLE(obj, f);
+	    GET_ANY_DOUBLE(obj, f);
 	    if (dflags & DFLAG_NEW_FLOATS) {
 		*ep++ = NEW_FLOAT_EXT;
 #if defined(WORDS_BIGENDIAN) || defined(DOUBLE_MIDDLE_ENDIAN)
@@ -3226,9 +3226,7 @@ dec_term_atom_common:
 		    goto error;
 		}
 		ep += 31;
-		*objp = make_float(hp);
-		PUT_DOUBLE(ff, hp);
-		hp += FLOAT_SIZE_OBJECT;
+		BUILD_FLOAT(ff, hp, *objp);
 		break;
 	    }
 	case NEW_FLOAT_EXT:
@@ -3251,9 +3249,7 @@ dec_term_atom_common:
 #endif		
 		__ERTS_FP_CHECK_INIT(fpexnp);
 		__ERTS_FP_ERROR_THOROUGH(fpexnp, ff.fd, goto error);
-		*objp = make_float(hp);
-		PUT_DOUBLE(ff, hp);
-		hp += FLOAT_SIZE_OBJECT;
+		BUILD_FLOAT(ff, hp, *objp);
 		break;
 	    }
 	case PID_EXT:

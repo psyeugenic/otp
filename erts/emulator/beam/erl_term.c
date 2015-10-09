@@ -28,6 +28,31 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+Eterm make_flonum(double d)
+{
+    FloatDef f;
+    f.fd = d;
+    if (f.fd != 0.0) {
+        f.fdw -= (Uint)FLONUM_EXP_MIN << 52;
+        ASSERT(f.fd != 0);
+    }
+    f.fdw = ((f.fdw << (1 + _TAG_IMMED1_SIZE)) |
+             (f.fdw >> (64 - (1 + _TAG_IMMED1_SIZE))));
+    ASSERT((f.fdw & _TAG_IMMED1_MASK) == 0);
+    return f.fdw | _TAG_IMMED1_FLONUM;
+}
+
+double flonum_val(Eterm term)
+{
+    FloatDef f;
+    f.fdw = term & ~(Uint)_TAG_IMMED1_MASK;
+    f.fdw = ((f.fdw >> (1 + _TAG_IMMED1_SIZE)) |
+             (f.fdw << (64 - (1 + _TAG_IMMED1_SIZE))));
+    if (f.fd != 0.0)
+        f.fdw += (Uint)FLONUM_EXP_MIN << 52;
+    return f.fd;
+}
+
 __decl_noreturn static void __noreturn
 et_abort(const char *expr, const char *file, unsigned line)
 {

@@ -3172,7 +3172,7 @@ static int do_float_to_charbuf(Process *p, Eterm efloat, Eterm list,
         goto badarg;
     }
 
-    GET_DOUBLE(efloat, f);
+    GET_ANY_DOUBLE(efloat, f);
 
     if (fmt_type == FMT_FIXED) {
         return sys_double_to_chars_fast(f.fd, fbuf, sizeof_fbuf,
@@ -3263,7 +3263,7 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
     Eterm error_res = NIL;
     int part = SIGN;	/* expect a + or - (or a digit) first */
     FloatDef f;
-    Eterm tup;
+    Eterm fterm, tup;
     byte *buf = NULL;
     Uint bufsz = STRING_TO_FLOAT_BUF_INC_SZ;
 
@@ -3407,9 +3407,16 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
 	error_res = am_no_float;
 	goto error;
     }
-    hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT + 3);
-    tup = TUPLE2(hp+FLOAT_SIZE_OBJECT, make_float(hp), list);
-    PUT_DOUBLE(f, hp);
+    if (IS_DBL_FLONUM(f.fd)) {
+	fterm = make_flonum(f.fd);
+	hp = HAlloc(BIF_P, 3); 
+    } else {
+	hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT + 3);
+	fterm = make_boxed_float(hp);
+	PUT_BOXED_DOUBLE(f, hp);
+	hp += FLOAT_SIZE_OBJECT;
+    }
+    tup = TUPLE2(hp, fterm, list);
     erts_free(ERTS_ALC_T_TMP, (void *) buf);
     BIF_RET(tup);
 }
@@ -3417,14 +3424,11 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
 static BIF_RETTYPE do_charbuf_to_float(Process *BIF_P,char *buf) {
   FloatDef f;
   Eterm res;
-  Eterm* hp;
 
   if (sys_chars_to_double(buf, &f.fd) != 0)
     BIF_ERROR(BIF_P, BADARG);
 
-  hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT);
-  res = make_float(hp);
-  PUT_DOUBLE(f, hp);
+  BUILD_FLOAT_HALLOC(BIF_P, f, res);
   BIF_RET(res);
 
 }

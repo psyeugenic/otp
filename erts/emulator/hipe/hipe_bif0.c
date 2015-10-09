@@ -878,16 +878,13 @@ BIF_RETTYPE hipe_bifs_term_to_word_1(BIF_ALIST_1)
 BIF_RETTYPE hipe_conv_big_to_float(BIF_ALIST_1)
 {
     Eterm res;
-    Eterm *hp;
     FloatDef f;
 
     if (is_not_big(BIF_ARG_1))
 	BIF_ERROR(BIF_P, BADARG);
     if (big_to_double(BIF_ARG_1, &f.fd) < 0)
 	BIF_ERROR(BIF_P, BADARG);
-    hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT);
-    res = make_float(hp);
-    PUT_DOUBLE(f, hp);
+    BUILD_FLOAT_HALLOC(BIF_P, f, res);
     BIF_RET(res);
 }
 

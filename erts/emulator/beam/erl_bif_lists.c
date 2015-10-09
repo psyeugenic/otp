@@ -350,14 +350,18 @@ keyfind(int Bif, Process* p, Eterm Key, Eterm Pos, Eterm List)
 		    Eterm element = tuple_ptr[pos];
 		    if (Key == element) {
 			return term;
-		    } else if (is_float(element)) {
-			FloatDef f;
-
-			GET_DOUBLE(element, f);
-			if (f.fd == float_key) {
-			    return term;
-			}
-		    }
+		    } else {
+                        FloatDef f;
+                        if (is_immed_float(element)) {
+                            f.fd = flonum_val(element);
+                        } else if (is_boxed_float(element)) {
+                            GET_BOXED_DOUBLE(element, f);
+                        } else
+                            continue;
+                        if (f.fd == float_key) {
+                            return term;
+                        }
+                    }
 		}
 	    }
 	}

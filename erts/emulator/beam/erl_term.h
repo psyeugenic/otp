@@ -249,6 +249,17 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
 #define is_both_small(x,y) (is_small(x) && is_small(y))
 #endif
 
+/*flonum (immediate floats) */
+#define FLONUM_EXP_BITS (11 - _TAG_IMMED1_SIZE)
+#define FLONUM_EXP_MIN  (1023 - (1 << (FLONUM_EXP_BITS-1)))
+#define FLONUM_EXP_MAX  (1023 + (1 << (FLONUM_EXP_BITS-1)) - 1)
+#define FLONUM_MIN      (5.421010862427523e-20)  /* <<0:1, 959:11, 1:52>>   */
+#define FLONUM_MAX      (1.844674407370955e19)   /* <<0:1, 1086:11, -1:52>> */
+#define IS_DBL_FLONUM(D) (fabs(D) >= FLONUM_MIN && fabs(D) <= FLONUM_MAX)
+
+Eterm make_flonum(double);
+double flonum_val(Eterm);
+
 /* NIL access methods */
 #define NIL		((~((Uint) 0) << _TAG_IMMED2_SIZE) | _TAG_IMMED2_NIL)
 #define is_nil(x)	((x) == NIL)
@@ -393,12 +404,14 @@ _ET_DECLARE_CHECKED(Eterm*,big_val,Wterm)
 #else
 #define HEADER_FLONUM	_make_header(2,_TAG_HEADER_FLOAT)
 #endif
-#define make_float(x)	make_boxed((x))
-#define is_float(x)	(is_boxed((x)) && *boxed_val((x)) == HEADER_FLONUM)
+#define make_boxed_float(x)	make_boxed((x))
+#define is_immed_float(x) (((x) & _TAG_IMMED1_MASK) == _TAG_IMMED1_FLONUM)
+#define is_boxed_float(x) (is_boxed((x)) && *boxed_val((x)) == HEADER_FLONUM)
+#define is_float(x)       (is_immed_float(x) || is_boxed_float(x))
 #define is_not_float(x)	(!is_float(x))
 #define _unchecked_float_val(x)	_unchecked_boxed_val((x))
 _ET_DECLARE_CHECKED(Eterm*,float_val,Wterm)
-#define float_val(x)	_ET_APPLY(float_val,(x))
+#define boxed_float_val(x)	_ET_APPLY(float_val,(x))
 
 /* Float definition for byte and word access */
 typedef double ieee754_8;
@@ -416,17 +429,57 @@ typedef union float_def
 
 #if defined(ARCH_64)
 
-#define FLOAT_VAL_GET_DOUBLE(fval, f) (f).fdw = *((fval)+1)
+#define BOXED_FLOAT_VAL_GET_DOUBLE(fval, f) (f).fdw = *((fval)+1)
 
-#define PUT_DOUBLE(f, x)  *(x) = HEADER_FLONUM, \
-                          *((x)+1) = (f).fdw
+#define PUT_BOXED_DOUBLE(f, x)  *(x) = HEADER_FLONUM, \
+                                *((x)+1) = (f).fdw
+
+#define BUILD_FLOAT(f, x, res) do {             \
+    FloatDef* fdp_ = &(f);                      \
+    if (IS_DBL_FLONUM(fdp_->fd)) {              \
+	(res) = make_flonum(fdp_->fd);          \
+    } else {                                    \
+	(res) = make_boxed_float(x);            \
+        PUT_BOXED_DOUBLE(*fdp_, (x));           \
+	(x) += FLOAT_SIZE_OBJECT;               \
+    }                                           \
+}while(0)
+
+#define BUILD_FLOAT_HALLOC(p, f, res) do {         \
+    FloatDef* fdp_ = &(f);                         \
+    if (IS_DBL_FLONUM(fdp_->fd)) {                 \
+	(res) = make_flonum(fdp_->fd);             \
+    } else {                                       \
+        Eterm* hp_ = HAlloc(p, FLOAT_SIZE_OBJECT); \
+	(res) = make_boxed_float(hp_);             \
+        PUT_BOXED_DOUBLE(*fdp_, hp_);              \
+    }                                              \
+}while(0)
+
+#define BUILD_FLOAT_GC(p, reg, live, f, res) do {                           \
+    FloatDef* fdp_ = &(f);                                                  \
+    if (IS_DBL_FLONUM(fdp_->fd)) {                                          \
+	(res) = make_flonum(fdp_->fd);                                      \
+    } else {                                                                \
+        if (ERTS_NEED_GC(p, FLOAT_SIZE_OBJECT)) {                           \
+            erts_garbage_collect((p), FLOAT_SIZE_OBJECT, (reg), (live));    \
+	}                                                                   \
+	(res) = make_boxed_float((p)->htop);                                \
+        PUT_BOXED_DOUBLE(*fdp_, (p)->htop);                                 \
+        (p)->htop += FLOAT_SIZE_OBJECT;                                     \
+    }                                                                       \
+}while(0)
+
+
 #define GET_DOUBLE_DATA(p, f) (f).fdw = *((Uint *) (p))
 #define PUT_DOUBLE_DATA(f,p) *((Uint *) (p)) = (f).fdw
-#else
+
+#elif defined(ARCH_32)
+
 #define FLOAT_VAL_GET_DOUBLE(fval, f) (f).fw[0] = *((fval)+1), \
 				      (f).fw[1] = *((fval)+2)
 
-#define PUT_DOUBLE(f, x)  *(x) = HEADER_FLONUM, \
+#define PUT_BOXED_DOUBLE(f, x)  *(x) = HEADER_FLONUM, \
                           *((x)+1) = (f).fw[0], \
 			  *((x)+2) = (f).fw[1]
 #define GET_DOUBLE_DATA(p, f) (f).fw[0] = *((Uint *) (p)),\
@@ -435,7 +488,9 @@ typedef union float_def
                              *(((Uint *) (p))+1) = (f).fw[1]
 #endif
 
-#define GET_DOUBLE(x, f) FLOAT_VAL_GET_DOUBLE(float_val(x), f)
+#define GET_BOXED_DOUBLE(x, f) BOXED_FLOAT_VAL_GET_DOUBLE(boxed_float_val(x), f)
+#define GET_ANY_DOUBLE(x, f) (is_immed(x) ? (void)((f).fd = flonum_val(x)) \
+                              :  (void)(GET_BOXED_DOUBLE(x,f)))
 
 #define DOUBLE_DATA_WORDS (sizeof(ieee754_8)/sizeof(Eterm))
 #define FLOAT_SIZE_OBJECT (DOUBLE_DATA_WORDS+1)

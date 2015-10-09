@@ -3818,28 +3818,23 @@ static Eterm table_info(Process* p, DbTable* tb, Eterm What)
 	    DbHashStats stats;
 	    Eterm avg, std_dev_real, std_dev_exp;
 	    Eterm* hp;
+            Eterm* hp_end;
 
 	    db_calc_stats_hash(&tb->hash, &stats);
 	    hp = HAlloc(p, 1 + 7 + FLOAT_SIZE_OBJECT*3);
+            hp_end = hp +  1 + 7 + FLOAT_SIZE_OBJECT*3;
 	    f.fd = stats.avg_chain_len;
-	    avg = make_float(hp);
-	    PUT_DOUBLE(f, hp);
-	    hp += FLOAT_SIZE_OBJECT;
-
+            BUILD_FLOAT(f, hp, avg);
 	    f.fd = stats.std_dev_chain_len;
-	    std_dev_real = make_float(hp);
-	    PUT_DOUBLE(f, hp);
-	    hp += FLOAT_SIZE_OBJECT;
-	    
+            BUILD_FLOAT(f, hp, std_dev_real);
 	    f.fd = stats.std_dev_expected;
-	    std_dev_exp = make_float(hp);
-	    PUT_DOUBLE(f, hp);
-	    hp += FLOAT_SIZE_OBJECT;
+            BUILD_FLOAT(f, hp, std_dev_exp);
 	    ret = TUPLE7(hp, make_small(erts_smp_atomic_read_nob(&tb->hash.nactive)),
 			 avg, std_dev_real, std_dev_exp,
 			 make_small(stats.min_chain_len),
 			 make_small(stats.max_chain_len),
 			 make_small(stats.kept_items));
+            HRelease(p, hp_end, hp);
 	}
 	else {
 	    ret = am_false;

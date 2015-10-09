@@ -958,7 +958,7 @@ tail_recur:
     case FLOAT_DEF: 
 	{
             FloatDef ff;
-            GET_DOUBLE(term, ff);
+            GET_ANY_DOUBLE(term, ff);
             if (ff.fd == 0.0f) {
                 /* ensure positive 0.0 */
                 ff.fd = erts_get_positive_zero_float();
@@ -1478,7 +1478,7 @@ make_hash2(Eterm term)
 	    case FLOAT_SUBTAG:
 	    {
 		FloatDef ff;
-		GET_DOUBLE(term, ff);
+		GET_BOXED_DOUBLE(term, ff);
                 if (ff.fd == 0.0f) {
                     /* ensure positive 0.0 */
                     ff.fd = erts_get_positive_zero_float();
@@ -1902,7 +1902,7 @@ make_internal_hash(Eterm term)
 	    case FLOAT_SUBTAG:
 	    {
 		FloatDef ff;
-		GET_DOUBLE(term, ff);
+		GET_BOXED_DOUBLE(term, ff);
                 if (ff.fd == 0.0f) {
                     /* ensure positive 0.0 */
                     ff.fd = erts_get_positive_zero_float();
@@ -2091,7 +2091,7 @@ tail_recur:
     case FLOAT_DEF: 
 	{
             FloatDef ff;
-            GET_DOUBLE(term, ff);
+            GET_BOXED_DOUBLE(term, ff);
             if (ff.fd == 0.0f) {
                 /* ensure positive 0.0 */
                 ff.fd = erts_get_positive_zero_float();
@@ -2836,9 +2836,9 @@ tailrecur_ne:
 		    FloatDef af;
 		    FloatDef bf;
   
-		    if (is_float(b)) {
-			GET_DOUBLE(a, af);
-			GET_DOUBLE(b, bf);
+		    if (is_boxed_float(b)) {
+			GET_BOXED_DOUBLE(a, af);
+			GET_BOXED_DOUBLE(b, bf);
 			if (af.fd == bf.fd) goto pop_next;
 		    }
 		    break; /* not equal */
@@ -3002,11 +3002,10 @@ Sint erts_cmp(Eterm a, Eterm b, int exact, int eq_only)
         return cmp_atoms(a, b);
     } else if (is_both_small(a, b)) {
         return (signed_val(a) - signed_val(b));
-    } else if (is_float(a) && is_float(b)) {
-        FloatDef af, bf;
-        GET_DOUBLE(a, af);
-        GET_DOUBLE(b, bf);
-        return float_comp(af.fd, bf.fd);
+    } else if (is_immed_float(a) && is_immed_float(b)) {
+        double af = flonum_val(a);
+        double bf = flonum_val(b);
+        return float_comp(af, bf);
     }
     return erts_cmp_compound(a,b,exact,eq_only);
 }
@@ -3299,15 +3298,15 @@ tailrecur_ne:
                     goto bodyrecur;
 		}
 	    case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE):
-		if (!is_float(b)) {
+		if (!is_boxed_float(b)) {
 		    a_tag = FLOAT_DEF;
 		    goto mixed_types;
 		} else {
 		    FloatDef af;
 		    FloatDef bf; 
 
-		    GET_DOUBLE(a, af);
-		    GET_DOUBLE(b, bf);
+		    GET_BOXED_DOUBLE(a, af);
+		    GET_BOXED_DOUBLE(b, bf);
 		    ON_CMP_GOTO(float_comp(af.fd, bf.fd));
 		}
 	    case (_TAG_HEADER_POS_BIG >> _TAG_PRIMARY_SIZE):
@@ -3538,7 +3537,7 @@ tailrecur_ne:
 	    break;
 	case SMALL_FLOAT:
 	    if (exact) goto exact_fall_through;
-	    GET_DOUBLE(bw, f2);
+	    GET_ANY_DOUBLE(bw, f2);
 	    if (f2.fd < MAX_LOSSLESS_FLOAT && f2.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
 		f1.fd = signed_val(aw);
@@ -3571,7 +3570,7 @@ tailrecur_ne:
 	}/* fall through */
 	case BIG_FLOAT:
 	    if (exact) goto exact_fall_through;
-	    GET_DOUBLE(bw, f2);
+	    GET_ANY_DOUBLE(bw, f2);
 	    if ((f2.fd < (double) (MAX_SMALL + 1))
 		    && (f2.fd > (double) (MIN_SMALL - 1))) {
 		/* Float is a Sint */
@@ -3601,7 +3600,7 @@ tailrecur_ne:
 	    break;
 	case FLOAT_SMALL:
 	    if (exact) goto exact_fall_through;
-	    GET_DOUBLE(aw, f1);
+	    GET_ANY_DOUBLE(aw, f1);
 	    if (f1.fd < MAX_LOSSLESS_FLOAT && f1.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
 		f2.fd = signed_val(bw);

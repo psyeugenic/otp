@@ -489,10 +489,7 @@ erts_bs_get_float_2(Process *p, Uint num_bits, unsigned flags, ErlBinMatchBuffer
 
     CHECK_MATCH_BUFFER(mb);
     if (num_bits == 0) {
-	f.fd = 0.0;
-	hp = HeapOnlyAlloc(p, FLOAT_SIZE_OBJECT);
-	PUT_DOUBLE(f, hp);
-	return make_float(hp);
+	return make_flonum(0.0);
     }
     if (mb->size - mb->offset < num_bits) {	/* Asked for too many bits.  */
 	return THE_NON_VALUE;
@@ -531,9 +528,13 @@ erts_bs_get_float_2(Process *p, Uint num_bits, unsigned flags, ErlBinMatchBuffer
 #endif
     }
     mb->offset += num_bits;
+
+    if (IS_DBL_FLONUM(f.fd)) {
+        return make_flonum(f.fd);
+    }
     hp = HeapOnlyAlloc(p, FLOAT_SIZE_OBJECT);
-    PUT_DOUBLE(f, hp);
-    return make_float(hp);
+    PUT_BOXED_DOUBLE(f, hp);
+    return make_boxed_float(hp);
 }
 
 Eterm
@@ -1048,8 +1049,17 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 		Uint32 i32[2];
 	    } u;
 
-	    if (is_float(arg)) {
-		FloatDef *fdp = (FloatDef*)(float_val(arg) + 1);
+            if (is_immed_float(arg)) {
+                u.f64 = flonum_val(arg);
+#ifdef DOUBLE_MIDDLE_ENDIAN
+		a = u.i32[1];
+		b = u.i32[0];
+#else
+		a = u.i32[0];
+		b = u.i32[1];
+#endif
+            } else if (is_boxed_float(arg)) {
+		FloatDef *fdp = (FloatDef*)(boxed_float_val(arg) + 1);
 #ifdef DOUBLE_MIDDLE_ENDIAN
 		a = fdp->fw[1];
 		b = fdp->fw[0];
@@ -1087,9 +1097,15 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 	    } u;
 
 	    b = 0;
-	    if (is_float(arg)) {
+            if (is_immed_float(arg)) {
+                double f64 = flonum_val(arg);
+                ERTS_FP_CHECK_INIT(c_p);
+                u.f32 = f64;
+                ERTS_FP_ERROR(c_p,u.f32,;);
+                a = u.i32;
+            } else if (is_boxed_float(arg)) {
 		FloatDef f;
-		GET_DOUBLE(arg, f);
+		GET_BOXED_DOUBLE(arg, f);
 		ERTS_FP_CHECK_INIT(c_p);
 		u.f32 = f.fd;
 		ERTS_FP_ERROR(c_p,u.f32,;);
@@ -1173,12 +1189,19 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 #endif
 	
 	if (num_bits == 64) {
-	    if (is_float(arg)) {
+            if (is_immed_float(arg)) {
+                f64 = flonum_val(arg);
 #ifdef DOUBLE_MIDDLE_ENDIAN
-		FloatDef *fdp = (FloatDef*)(float_val(arg) + 1);
+		ftmp.fd = f64;
+#else
+		bptr = (byte *) &f64;
+#endif
+            } else if (is_boxed_float(arg)) {
+#ifdef DOUBLE_MIDDLE_ENDIAN
+		FloatDef *fdp = (FloatDef*)(boxed_float_val(arg) + 1);
 		ftmp = *fdp;
 #else
-		bptr = (byte *) (float_val(arg) + 1);
+		bptr = (byte *) (boxed_float_val(arg) + 1);
 #endif
 	    } else if (is_small(arg)) {
 		f64 = (double) signed_val(arg);
@@ -1205,27 +1228,26 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 	    bptr = fbuf.fb;
 #endif
 	} else if (num_bits == 32) {
-	    if (is_float(arg)) {
-		FloatDef f;
-		GET_DOUBLE(arg, f);
-		ERTS_FP_CHECK_INIT(c_p);
-		f32 = f.fd;
-		ERTS_FP_ERROR(c_p,f32,;);
-		bptr = (byte *) &f32;
-	    } else if (is_small(arg)) {
-		f32 = (float) signed_val(arg);
-		bptr = (byte *) &f32;
-	    } else if (is_big(arg)) {
-		if (big_to_double(arg, &f64) < 0) {
-		    return 0;
-		}
-		ERTS_FP_CHECK_INIT(c_p);
-		f32 = (float) f64;
-		ERTS_FP_ERROR(c_p,f32,;);
-		bptr = (byte *) &f32;
-	    } else {
-		return 0;
-	    }
+            if (is_small(arg)) {
+                f32 = (float) signed_val(arg);
+            } else {
+                FloatDef f;
+                if (is_immed_float(arg)) {
+                    f.fd = flonum_val(arg);
+                } else if (is_boxed_float(arg)) {
+                    GET_BOXED_DOUBLE(arg, f);
+                } else if (is_big(arg)) {
+                    if (big_to_double(arg, &f.fd) < 0) {
+                        return 0;
+                    }
+                } else {
+                    return 0;
+                }
+                ERTS_FP_CHECK_INIT(c_p);
+                f32 = (float) f.fd;
+                ERTS_FP_ERROR(c_p,f32,;);
+            }
+            bptr = (byte *) &f32;
 	} else {
 	    return 0;
 	}

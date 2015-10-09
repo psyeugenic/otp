@@ -35,11 +35,12 @@ math_call_1(Process* p, double (*func)(double), Eterm arg1)
 {
     FloatDef a1;
     Eterm res;
-    Eterm* hp;
 
     ERTS_FP_CHECK_INIT(p);
-    if (is_float(arg1)) {
-	GET_DOUBLE(arg1, a1);
+    if (is_immed_float(arg1)) {
+        a1.fd = flonum_val(arg1);
+    } else if (is_boxed_float(arg1)) {
+        GET_BOXED_DOUBLE(arg1, a1);
     } else if (is_small(arg1)) {
 	a1.fd = signed_val(arg1);
     } else if (is_big(arg1)) {
@@ -54,9 +55,7 @@ math_call_1(Process* p, double (*func)(double), Eterm arg1)
     }
     a1.fd = (*func)(a1.fd);
     ERTS_FP_ERROR_THOROUGH(p, a1.fd, goto badarith);
-    hp = HAlloc(p, FLOAT_SIZE_OBJECT);
-    res = make_float(hp);
-    PUT_DOUBLE(a1, hp);
+    BUILD_FLOAT_HALLOC(p, a1, res);
     return res;
 }
 
@@ -67,11 +66,12 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
     FloatDef a1;
     FloatDef a2;
     Eterm res;
-    Eterm* hp;
 
     ERTS_FP_CHECK_INIT(p);
-    if (is_float(arg1)) {
-	GET_DOUBLE(arg1, a1);
+    if (is_immed_float(arg1)) {
+        a1.fd = flonum_val(arg1);
+    } else if (is_boxed_float(arg1)) {
+	GET_BOXED_DOUBLE(arg1, a1);
     } else if (is_small(arg1)) {
 	a1.fd = signed_val(arg1);
     } else if (is_big(arg1)) {
@@ -85,8 +85,10 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
 	return THE_NON_VALUE;
     }
 
-    if (is_float(arg2)) {
-	GET_DOUBLE(arg2, a2);
+    if (is_immed_float(arg2)) {
+        a2.fd = flonum_val(arg2);
+    } else if (is_boxed_float(arg2)) {
+        GET_BOXED_DOUBLE(arg2, a2);
     } else if (is_small(arg2)) {
 	a2.fd = signed_val(arg2);
     } else if (is_big(arg2)) {
@@ -100,9 +102,7 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
 
     a1.fd = (*func)(a1.fd, a2.fd);
     ERTS_FP_ERROR_THOROUGH(p, a1.fd, goto badarith);
-    hp = HAlloc(p, FLOAT_SIZE_OBJECT);
-    res = make_float(hp);
-    PUT_DOUBLE(a1, hp);
+    BUILD_FLOAT_HALLOC(p, a1, res);
     return res;
 }
 

@@ -4615,7 +4615,7 @@ do {						\
      BeamInstr *next;
 
      PreFetch(2, next);
-     GET_DOUBLE(Arg(0), *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     GET_ANY_DOUBLE(Arg(0), *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      NextPF(2, next);
  }
 
@@ -4627,16 +4627,15 @@ do {						\
      PreFetch(2, next);
      targ1 = REG_TARGET(Arg(0));
      /* Arg(0) == HEADER_FLONUM */
-     GET_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     GET_ANY_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      NextPF(2, next);
  }
 
  OpCase(fmove_ld): {
      Eterm fr = Arg(0);
-     Eterm dest = make_float(HTOP);
+     Eterm dest;
 
-     PUT_DOUBLE(*(FloatDef*)ADD_BYTE_OFFSET(freg, fr), HTOP);
-     HTOP += FLOAT_SIZE_OBJECT;
+     BUILD_FLOAT(*(FloatDef*)ADD_BYTE_OFFSET(freg, fr), HTOP, dest);
      StoreBifResult(1, dest);
  }
 
@@ -4653,8 +4652,10 @@ do {						\
 	 if (big_to_double(targ1, &fb(fr)) < 0) {
 	     goto fbadarith;
 	 }
-     } else if (is_float(targ1)) {
-	 GET_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     } else if (is_immed_float(targ1)) {
+	 ((FloatDef*)ADD_BYTE_OFFSET(freg, fr))->fd = flonum_val(targ1);
+     } else if (is_boxed_float(targ1)) {
+	 GET_BOXED_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      } else {
 	 goto fbadarith;
      }

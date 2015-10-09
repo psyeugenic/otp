@@ -5631,13 +5631,19 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 
 	case ERL_DRV_FLOAT: { /* double * */
 	    FloatDef f;
-	    Eterm* fp = erts_produce_heap(&factory, FLOAT_SIZE_OBJECT, HEAP_EXTRA);
 
-	    mess = make_float(fp);
 	    f.fd = *((double *) ptr[0]);
-            if (!erts_isfinite(f.fd))
-                ERTS_DDT_FAIL;
-	    PUT_DOUBLE(f, fp);
+	    if (!erts_isfinite(f.fd))
+		ERTS_DDT_FAIL;
+
+            if (IS_DBL_FLONUM(f.fd)) {
+		mess = make_flonum(f.fd);
+            } else {
+		Eterm *fp = erts_produce_heap(&factory, FLOAT_SIZE_OBJECT, HEAP_EXTRA); 
+
+		mess = make_boxed_float(fp);
+		PUT_BOXED_DOUBLE(f, fp);
+	    }
 	    ptr++;
 	    break;
 	}

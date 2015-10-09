@@ -860,16 +860,13 @@ static double fallback_get_hrvtime(void)
 
 BIF_RETTYPE hipe_bifs_get_hrvtime_0(BIF_ALIST_0)
 {
-    Eterm *hp;
     Eterm res;
     FloatDef f;
 
     if (!hrvtime_is_started())
 	start_hrvtime();
     f.fd = get_hrvtime();
-    hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT);
-    res = make_float(hp);
-    PUT_DOUBLE(f, hp);
+    BUILD_FLOAT_HALLOC(BIF_P, f, res);
     BIF_RET(res);
 }
 

@@ -220,7 +220,7 @@ typedef enum {
     matchBind,
     matchCmp,
     matchEqBin,
-    matchEqFloat,
+    matchEqBoxedFloat,
     matchEqBig,
     matchEqRef,
     matchEq,
@@ -1987,14 +1987,14 @@ restart:
 		FAIL();
 	    ++ep;
 	    break;
-	case matchEqFloat:
-	    if (!is_float(*ep))
-		FAIL();
-	    if (memcmp(float_val(*ep) + 1, pc, sizeof(double)))
-		FAIL();
-	    pc += TermWords(2);
-	    ++ep;
-	    break;
+        case matchEqBoxedFloat:
+            if (!is_boxed_float(*ep))
+                FAIL();
+            if (memcmp(boxed_float_val(*ep) + 1, pc, sizeof(double)))
+                FAIL();
+            pc += TermWords(2);
+            ++ep;
+            break;
 	case matchEqRef: {
 	    Eterm* epc = (Eterm*)pc;
 	    if (!is_ref(*ep))
@@ -3440,12 +3440,12 @@ static DMCRet dmc_one_term(DMCContext *context,
 	    break;
 	}
 	case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE):
-	    DMC_PUSH(*text,matchEqFloat);
-	    DMC_PUSH(*text, (Uint) float_val(c)[1]);
+	    DMC_PUSH(*text,matchEqBoxedFloat);
+	    DMC_PUSH(*text, (Uint) boxed_float_val(c)[1]);
 #ifdef ARCH_64
 	    DMC_PUSH(*text, (Uint) 0);
 #else
-	    DMC_PUSH(*text, (Uint) float_val(c)[2]);
+	    DMC_PUSH(*text, (Uint) boxed_float_val(c)[2]);
 #endif
 	    break;
 	default: /* BINARY, FUN, VECTOR, or EXTERNAL */
@@ -5361,13 +5361,13 @@ void db_match_dis(Binary *bp)
 	    }
 	    erts_printf("}\n");
 	    break;
-	case matchEqFloat:
+	case matchEqBoxedFloat:
 	    ++t;
 	    {
 		double num;
 		memcpy(&num,t,sizeof(double));
 		t += TermWords(2);
-		erts_printf("EqFloat\t%f\n", num);
+		erts_printf("EqBoxedFloat\t%f\n", num);
 	    }
 	    break;
 	case matchEq:
