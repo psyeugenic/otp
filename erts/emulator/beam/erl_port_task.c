@@ -216,7 +216,8 @@ static ERTS_INLINE int
 caller2bix(Eterm caller)
 {
     ASSERT(is_internal_pid(caller) || is_internal_port(caller));
-    return (int) (_GET_PID_DATA(caller) % ERTS_PORT_TASK_BUSY_CALLER_TABLE_BUCKETS);
+
+    return (int) (caller % ERTS_PORT_TASK_BUSY_CALLER_TABLE_BUCKETS);
 }
 
 

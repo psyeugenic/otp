@@ -830,6 +830,7 @@ bad_nc(Config) when is_list(Config) ->
     % Make sure emulator don't crash on bad node containers...
     ?line MaxPidNum = (1 bsl 15) - 1,
     ?line MaxPidSer = ?MAX_PIDS_PORTS bsr 15,
+    ?line MaxExtPidSer = ((1 bsl 32)-1) bsr 15,
     ?line ThisNode = {node(), erlang:system_info(creation)},
     ?line {'EXIT', {badarg, mk_pid, _}}
 	= (catch mk_pid(ThisNode, MaxPidNum + 1, 17)),
@@ -843,11 +844,9 @@ bad_nc(Config) when is_list(Config) ->
 	= (catch mk_ref(ThisNode, [4711, 4711, 4711, 4711, 4711, 4711, 4711])),
     ?line RemNode = {x@y, 2},
     ?line {'EXIT', {badarg, mk_pid, _}}
-	= (catch mk_pid(RemNode, MaxPidNum + 1, MaxPidSer)),
+	= (catch mk_pid(RemNode, MaxPidNum + 1, MaxExtPidSer)),
     ?line {'EXIT', {badarg, mk_pid, _}}
-	= (catch mk_pid(RemNode, MaxPidNum, MaxPidSer + 1)),
-    ?line {'EXIT', {badarg, mk_port, _}}
-	= (catch mk_port(RemNode, ?MAX_PIDS_PORTS + 1)),
+	= (catch mk_pid(RemNode, MaxPidNum, MaxExtPidSer + 1)),
     ?line {'EXIT', {badarg, mk_ref, _}}
 	= (catch mk_ref(RemNode, [(1 bsl 18), 4711, 4711])),
     ?line {'EXIT', {badarg, mk_ref, _}}

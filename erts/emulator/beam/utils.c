@@ -1473,7 +1473,6 @@ make_hash2(Eterm term)
 		UINT32_HASH(external_pid_number(term), HCONST_5);
 		goto hash2_common;
 	    case EXTERNAL_PORT_SUBTAG:
-		/* Only 15 bits are hashed. */
 		UINT32_HASH(external_port_number(term), HCONST_6);
 		goto hash2_common;
 	    case FLOAT_SUBTAG:

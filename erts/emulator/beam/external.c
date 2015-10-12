@@ -2273,11 +2273,9 @@ dec_pid(ErtsDistExternal *edep, ErtsHeapFactory* factory, byte* ep, Eterm* objp)
     num = get_int32(ep);
     ep += 4;
     if (num > ERTS_MAX_PID_NUMBER)
-	return NULL;
+        return NULL;
     ser = get_int32(ep);
     ep += 4;
-    if (ser > ERTS_MAX_PID_SERIAL)
-	return NULL;
     cre = get_int8(ep);
     ep += 1;
 
@@ -2286,16 +2284,18 @@ dec_pid(ErtsDistExternal *edep, ErtsHeapFactory* factory, byte* ep, Eterm* objp)
     }
     data = make_pid_data(ser, num);
 
-    /*
-     * We are careful to create the node entry only after all
-     * validity tests are done.
-     */
     node = dec_get_node(sysname, cre);
+    /*
+     * Failures from here on must make sure to restore external node ref count
+     */
 
     if(node == erts_this_node) {
+        if (ser > ERTS_MAX_PID_SERIAL)
+            return NULL;
 	*objp = make_internal_pid(data);
     } else {
 	ExternalThing *etp = (ExternalThing *) factory->hp;
+
 	factory->hp += EXTERNAL_THING_HEAD_SIZE + 1;
 
 	etp->header = make_external_pid_header(1);
@@ -2305,6 +2305,9 @@ dec_pid(ErtsDistExternal *edep, ErtsHeapFactory* factory, byte* ep, Eterm* objp)
 
 	factory->off_heap->first = (struct erl_off_heap_header*) etp;
 	*objp = make_external_pid(etp);
+
+        if (ser > ERTS_MAX_EXT_PID_SERIAL)
+            return NULL; /* do this after link into offheap for dec_term undo */
     }
     return ep;
 }
@@ -3271,9 +3274,7 @@ dec_term_atom_common:
 		if ((ep = dec_atom(edep, ep, &sysname)) == NULL) {
 		    goto error;
 		}
-		if ((num = get_int32(ep)) > ERTS_MAX_PORT_NUMBER) {
-		    goto error;
-		}
+                num = get_int32(ep);
 		ep += 4;
 		cre = get_int8(ep);
 		ep++;
@@ -3283,6 +3284,8 @@ dec_term_atom_common:
 
 		node = dec_get_node(sysname, cre);
 		if(node == erts_this_node) {
+                    if (num > ERTS_MAX_PORT_NUMBER)
+                        goto error;
 		    *objp = make_internal_port(num);
 		}
 		else {
@@ -3292,7 +3295,7 @@ dec_term_atom_common:
 		    etp->header = make_external_port_header(1);
 		    etp->next = factory->off_heap->first;
 		    etp->node = node;
-		    etp->data.ui[0] = num;
+		    etp->data.ui[0] = num; /* allow full 32-bits for foreign node */
 
 		    factory->off_heap->first = (struct erl_off_heap_header*)etp;
 		    *objp = make_external_port(etp);

@@ -560,14 +560,15 @@ _ET_DECLARE_CHECKED(Eterm*,tuple_val,Wterm)
  */
 
 #define _PID_SER_SIZE		(_PID_DATA_SIZE - _PID_NUM_SIZE)
+#define _PID_EXT_SER_SIZE       (32 - _PID_NUM_SIZE)
 #define _PID_NUM_SIZE 		15
 
 #define _PID_DATA_SIZE		28
 #define _PID_DATA_SHIFT		(_TAG_IMMED1_SIZE)
 
-#define _GET_PID_DATA(X)	_GETBITS((X),_PID_DATA_SHIFT,_PID_DATA_SIZE)
 #define _GET_PID_NUM(X)		_GETBITS((X),0,_PID_NUM_SIZE)
 #define _GET_PID_SER(X)		_GETBITS((X),_PID_NUM_SIZE,_PID_SER_SIZE)
+#define _GET_EXT_PID_SER(X)	_GETBITS((X),_PID_NUM_SIZE,_PID_EXT_SER_SIZE)
 
 #define make_pid_data(Ser, Num) \
   ((Uint) ((Ser) << _PID_NUM_SIZE | (Num)))
@@ -609,12 +610,13 @@ _ET_DECLARE_CHECKED(struct erl_node_*,internal_pid_node,Eterm)
  *
  */
 #define _PORT_NUM_SIZE		_PORT_DATA_SIZE
+#define _PORT_EXT_NUM_SIZE      (32)
 
 #define _PORT_DATA_SIZE		28
 #define _PORT_DATA_SHIFT	(_TAG_IMMED1_SIZE)
 
-#define _GET_PORT_DATA(X)	_GETBITS((X),_PORT_DATA_SHIFT,_PORT_DATA_SIZE)
 #define _GET_PORT_NUM(X)	_GETBITS((X), 0, _PORT_NUM_SIZE)
+#define _GET_EXT_PORT_NUM(X)	_GETBITS((X), 0, _PORT_EXT_NUM_SIZE)
 
 
 #define is_internal_port(x)	(((x) & _TAG_IMMED1_MASK) == _TAG_IMMED1_PORT)
@@ -924,7 +926,7 @@ _ET_DECLARE_CHECKED(struct erl_node_*,external_pid_node,Wterm)
 #define external_pid_node(x) _ET_APPLY(external_pid_node,(x))
 
 #define external_pid_number(x) _GET_PID_NUM(external_pid_data((x)))
-#define external_pid_serial(x) _GET_PID_SER(external_pid_data((x)))
+#define external_pid_serial(x) _GET_EXT_PID_SER(external_pid_data((x)))
 
 #define _unchecked_external_port_data_words(x) \
   _unchecked_external_data_words((x))
@@ -939,7 +941,7 @@ _ET_DECLARE_CHECKED(Uint,external_port_data,Wterm)
 _ET_DECLARE_CHECKED(struct erl_node_*,external_port_node,Wterm)
 #define external_port_node(x) _ET_APPLY(external_port_node,(x))
 
-#define external_port_number(x) _GET_PORT_NUM(external_port_data((x)))
+#define external_port_number(x) _GET_EXT_PORT_NUM(external_port_data((x)))
 
 #define _unchecked_external_ref_data_words(x) \
   _unchecked_external_data_words((x))
