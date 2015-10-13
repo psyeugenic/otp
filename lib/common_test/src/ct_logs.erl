@@ -917,8 +917,13 @@ print_to_log(async, FromPid, Category, TCGL, List, State) ->
 	end,
     case State#logger_state.async_print_jobs of
 	[] ->
-	    {_Pid,Ref} = spawn_monitor(Printer),
-	    State#logger_state{async_print_jobs = [Ref]};
+	    case (catch spawn_monitor(Printer)) of
+		{'EXIT', {system_limit,_}} ->
+		    %%Printer(),
+		    State;
+		{_Pid,Ref} ->
+		    State#logger_state{async_print_jobs = [Ref]}
+	    end;
 	Queue ->
 	    State#logger_state{async_print_jobs = [Printer|Queue]}
     end.
