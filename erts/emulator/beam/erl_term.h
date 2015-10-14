@@ -249,12 +249,22 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
 #define is_both_small(x,y) (is_small(x) && is_small(y))
 #endif
 
-/*flonum (immediate floats) */
+/* Immediate floats */
 #define FLONUM_EXP_BITS (11 - _TAG_IMMED1_SIZE)
 #define FLONUM_EXP_MIN  (1023 - (1 << (FLONUM_EXP_BITS-1)))
 #define FLONUM_EXP_MAX  (1023 + (1 << (FLONUM_EXP_BITS-1)) - 1)
-#define FLONUM_MIN      (5.421010862427523e-20)  /* <<0:1, 959:11, 1:52>>   */
-#define FLONUM_MAX      (1.844674407370955e19)   /* <<0:1, 1086:11, -1:52>> */
+
+/* Lowest immediate float:
+ * FLONUM_EXP_MIN as exponent and 1 as mantissa (0 is special for 0.0)
+ * <<FLONUM_MIN/float>> = <<0:1, FLONUM_EXP_MIN:11, 1:52>>
+ */
+#define FLONUM_MIN (5.421010862427523e-20)
+
+/* Highest immediate float:
+ * FLONUM_EXP_MAX as exponent and 0xfffffffffffff as mantissa
+ * <<FLONUM_MAX/float>> = <<0:1, FLONUM_EXP_MAX:11, -1:52>>
+ */
+#define FLONUM_MAX (1.844674407370955e19)
 #define IS_DBL_FLONUM(D) (fabs(D) >= FLONUM_MIN && fabs(D) <= FLONUM_MAX)
 
 Eterm make_flonum(double);

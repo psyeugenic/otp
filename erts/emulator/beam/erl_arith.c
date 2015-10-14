@@ -344,6 +344,10 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -365,6 +369,9 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -382,6 +389,12 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 		    }
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    goto do_big;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -427,6 +440,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;
@@ -492,6 +508,10 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -510,6 +530,9 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -540,6 +563,12 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 			return THE_NON_VALUE;
 		    }
 		    return res;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -573,6 +602,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;
@@ -670,6 +702,10 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 			    return res;
 			}
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -693,6 +729,9 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -712,6 +751,12 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    sz = 2 + big_size(arg1);
 		    goto do_big;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -766,6 +811,9 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
+            goto do_float;
         default:
             goto badarith;
         }
@@ -817,6 +865,9 @@ erts_mixed_div(Process* p, Eterm arg1, Eterm arg2)
 		case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 		    f2.fd = signed_val(arg2);
 		    goto do_float;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -837,6 +888,9 @@ erts_mixed_div(Process* p, Eterm arg1, Eterm arg2)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -854,6 +908,9 @@ erts_mixed_div(Process* p, Eterm arg1, Eterm arg2)
 		    }
 		    f2.fd = signed_val(arg2);
 		    goto do_float;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -891,6 +948,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;
@@ -1196,6 +1256,10 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		badarith:
 		    p->freason = BADARITH;
@@ -1219,6 +1283,9 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -1236,6 +1303,12 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 		    }
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    goto do_big;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -1291,6 +1364,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;
@@ -1361,6 +1437,10 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -1379,6 +1459,9 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -1419,6 +1502,13 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 			return THE_NON_VALUE;
 		    }
 		    return res;
+
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -1452,6 +1542,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;
@@ -1561,6 +1654,10 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 			    return res;
 			}
 		    }
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f1.fd = (double) signed_val(arg1);
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -1584,6 +1681,9 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -1603,6 +1703,12 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    sz = 2 + big_size(arg1);
 		    goto do_big;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    if (big_to_double(arg1, &f1.fd) < 0) {
+                        goto badarith;
+                    }
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -1667,6 +1773,9 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
+            goto do_float;
         default:
             goto badarith;
         }
@@ -1722,6 +1831,9 @@ erts_gc_mixed_div(Process* p, Eterm* reg, Uint live)
 		case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 		    f2.fd = signed_val(arg2);
 		    goto do_float;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
                 default:
                     goto badarith;
 		}
@@ -1743,6 +1855,9 @@ erts_gc_mixed_div(Process* p, Eterm* reg, Uint live)
 		    goto badarith;
 		}
 	    }
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f1.fd = flonum_val(arg1);
+            goto arg1_is_float;
 	default:
 	    goto badarith;
 	}
@@ -1760,6 +1875,9 @@ erts_gc_mixed_div(Process* p, Eterm* reg, Uint live)
 		case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 		    f2.fd = signed_val(arg2);
 		    goto do_float;
+                case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+                    f2.fd = flonum_val(arg2);
+                    goto do_float;
 		default:
 		    goto badarith;
 		}
@@ -1793,6 +1911,9 @@ arg1_is_float:
         switch ((arg2 & _TAG_IMMED1_MASK) >> _TAG_PRIMARY_SIZE) {
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
+            goto do_float;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):
+            f2.fd = flonum_val(arg2);
             goto do_float;
         default:
             goto badarith;

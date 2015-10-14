@@ -1136,6 +1136,7 @@ make_hash2(Eterm term)
 {
     Uint32 hash;
     Uint32 hash_xor_pairs;
+    FloatDef ff;
     DeclareTmpHeapNoproc(tmp_big,2);
 
     ERTS_UNDEF(hash_xor_pairs, 0);
@@ -1477,18 +1478,8 @@ make_hash2(Eterm term)
 		goto hash2_common;
 	    case FLOAT_SUBTAG:
 	    {
-		FloatDef ff;
 		GET_BOXED_DOUBLE(term, ff);
-                if (ff.fd == 0.0f) {
-                    /* ensure positive 0.0 */
-                    ff.fd = erts_get_positive_zero_float();
-                }
-#if defined(WORDS_BIGENDIAN) || defined(DOUBLE_MIDDLE_ENDIAN)
-		UINT32_HASH_2(ff.fw[0], ff.fw[1], HCONST_12);
-#else
-		UINT32_HASH_2(ff.fw[1], ff.fw[0], HCONST_12);
-#endif
-		goto hash2_common;
+                goto hash2_float;
 	    }
 	    break;
 		    
@@ -1537,10 +1528,25 @@ make_hash2(Eterm term)
 		  SINT32_HASH(x, HCONST);
 		  goto hash2_common;
 	      }
+            case _TAG_IMMED1_FLONUM:
+                ff.fd = flonum_val(term);
+                goto hash2_float;
 	    }
 	    break;
 	default:
 	    erl_exit(1, "Invalid tag in make_hash2(0x%X)\n", term);
+
+        hash2_float:
+            if (ff.fd == 0.0f) {
+                /* ensure positive 0.0 */
+                ff.fd = erts_get_positive_zero_float();
+            }
+#if defined(WORDS_BIGENDIAN) || defined(DOUBLE_MIDDLE_ENDIAN)
+            UINT32_HASH_2(ff.fw[0], ff.fw[1], HCONST_12);
+#else
+            UINT32_HASH_2(ff.fw[1], ff.fw[0], HCONST_12);
+#endif
+
 	hash2_common:
 
 	    /* Uint32 hash always has the hash value of the previous term,
@@ -1604,6 +1610,7 @@ make_internal_hash(Eterm term)
 {
     Uint32 hash;
     Uint32 hash_xor_pairs;
+    FloatDef ff;
 
     ERTS_UNDEF(hash_xor_pairs, 0);
 
@@ -1901,14 +1908,8 @@ make_internal_hash(Eterm term)
             }
 	    case FLOAT_SUBTAG:
 	    {
-		FloatDef ff;
 		GET_BOXED_DOUBLE(term, ff);
-                if (ff.fd == 0.0f) {
-                    /* ensure positive 0.0 */
-                    ff.fd = erts_get_positive_zero_float();
-                }
-		UINT32_HASH_2(ff.fw[0], ff.fw[1], HCONST_12);
-		goto pop_next;
+                goto hash_float;
 	    }
 	    default:
 		erl_exit(1, "Invalid tag in make_hash2(0x%X)\n", term);
@@ -1916,6 +1917,10 @@ make_internal_hash(Eterm term)
 	}
 	break;
         case TAG_PRIMARY_IMMED1:
+            if (is_immed_float(term)) {
+                ff.fd = flonum_val(term);
+                goto hash_float;
+            }
         #if ERTS_SIZEOF_ETERM == 8
             UINT32_HASH_2((Uint32)term, (Uint32)(term >> 32), HCONST);
         #else
@@ -1925,6 +1930,13 @@ make_internal_hash(Eterm term)
 
 	default:
 	    erl_exit(1, "Invalid tag in make_hash2(0x%X)\n", term);
+
+        hash_float:
+            if (ff.fd == 0.0f) {
+                /* ensure positive 0.0 */
+                ff.fd = erts_get_positive_zero_float();
+            }
+            UINT32_HASH_2(ff.fw[0], ff.fw[1], HCONST_12);
 
 	pop_next:
 	    if (ESTACK_ISEMPTY(s)) {
@@ -2091,7 +2103,7 @@ tail_recur:
     case FLOAT_DEF: 
 	{
             FloatDef ff;
-            GET_BOXED_DOUBLE(term, ff);
+            GET_ANY_DOUBLE(term, ff);
             if (ff.fd == 0.0f) {
                 /* ensure positive 0.0 */
                 ff.fd = erts_get_positive_zero_float();
@@ -3127,6 +3139,20 @@ tailrecur_ne:
 	case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 	    a_tag = SMALL_DEF;
 	    goto mixed_types;
+        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE): {
+            FloatDef af, bf;
+
+            if (is_immed_float(b)) {
+                bf.fd = flonum_val(b);
+            } else if (is_boxed_float(b)) {
+                GET_BOXED_DOUBLE(b, bf);
+            } else {
+                a_tag = FLOAT_DEF;
+                goto mixed_types;
+            }
+            af.fd = flonum_val(a);
+            ON_CMP_GOTO(float_comp(af.fd, bf.fd));
+        }
 	case (_TAG_IMMED1_IMMED2 >> _TAG_PRIMARY_SIZE): {
             switch ((a & _TAG_IMMED2_MASK) >> _TAG_IMMED1_SIZE) {
             case (_TAG_IMMED2_PORT >> _TAG_IMMED1_SIZE):
@@ -3297,18 +3323,20 @@ tailrecur_ne:
                     sp->wstack_rollback = WSTACK_COUNT(stack);
                     goto bodyrecur;
 		}
-	    case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE):
-		if (!is_boxed_float(b)) {
+            case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE): {
+                FloatDef af, bf;
+
+		if (is_immed_float(b)) {
+                    bf.fd = flonum_val(b);
+                } else if (is_boxed_float(b)) {
+		    GET_BOXED_DOUBLE(b, bf);
+                } else {
 		    a_tag = FLOAT_DEF;
 		    goto mixed_types;
-		} else {
-		    FloatDef af;
-		    FloatDef bf; 
-
-		    GET_BOXED_DOUBLE(a, af);
-		    GET_BOXED_DOUBLE(b, bf);
-		    ON_CMP_GOTO(float_comp(af.fd, bf.fd));
 		}
+                GET_BOXED_DOUBLE(a, af);
+                ON_CMP_GOTO(float_comp(af.fd, bf.fd));
+            }
 	    case (_TAG_HEADER_POS_BIG >> _TAG_PRIMARY_SIZE):
 	    case (_TAG_HEADER_NEG_BIG >> _TAG_PRIMARY_SIZE):
 		if (!is_big(b)) {

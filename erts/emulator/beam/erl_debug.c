@@ -181,11 +181,11 @@ pdisplay1(int to, void *to_arg, Process* p, Eterm obj)
 	erts_putc(to, to_arg, '}');
 	break;
     case FLOAT_DEF: {
-	    FloatDef ff;
-	    GET_ANY_DOUBLE(obj, ff);
-	    erts_print(to, to_arg, "%.20e", ff.fd);
-	}
+        FloatDef ff;
+        GET_ANY_DOUBLE(obj, ff);
+        erts_print(to, to_arg, "%.20e", ff.fd);
 	break;
+    }
     case BINARY_DEF:
 	erts_print(to, to_arg, "#Bin");
 	break;
