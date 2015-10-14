@@ -5350,7 +5350,7 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 	    break;
 	case ERL_DRV_FLOAT: /* double * */
 	    ERTS_DDT_CHK_ENOUGH_ARGS(1);
-	    need += FLOAT_SIZE_OBJECT;
+	    need += HFLOAT_SIZE_OBJECT;
 	    ptr++;
 	    depth++;
 	    break;
@@ -5636,13 +5636,13 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 	    if (!erts_isfinite(f.fd))
 		ERTS_DDT_FAIL;
 
-            if (IS_DBL_FLONUM(f.fd)) {
-		mess = make_flonum(f.fd);
+            if (IS_IFLOAT(f.fd)) {
+		mess = make_ifloat(f.fd);
             } else {
-		Eterm *fp = erts_produce_heap(&factory, FLOAT_SIZE_OBJECT, HEAP_EXTRA); 
+		Eterm *fp = erts_produce_heap(&factory, HFLOAT_SIZE_OBJECT, HEAP_EXTRA); 
 
-		mess = make_boxed_float(fp);
-		PUT_BOXED_DOUBLE(f, fp);
+		mess = make_hfloat(fp);
+		PUT_HFLOAT(f, fp);
 	    }
 	    ptr++;
 	    break;

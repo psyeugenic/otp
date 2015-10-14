@@ -1988,9 +1988,9 @@ restart:
 	    ++ep;
 	    break;
         case matchEqBoxedFloat:
-            if (!is_boxed_float(*ep))
+            if (!is_hfloat(*ep))
                 FAIL();
-            if (memcmp(boxed_float_val(*ep) + 1, pc, sizeof(double)))
+            if (memcmp(hfloat_val(*ep) + 1, pc, sizeof(double)))
                 FAIL();
             pc += TermWords(2);
             ++ep;
@@ -2719,7 +2719,7 @@ void db_do_update_element(DbUpdateHandle* handle,
 		switch (*newp & _TAG_HEADER_MASK) {
 		case _TAG_HEADER_POS_BIG:
 		case _TAG_HEADER_NEG_BIG:
-		case _TAG_HEADER_FLOAT:
+		case _TAG_HEADER_HFLOAT:
 		case _TAG_HEADER_HEAP_BIN:
 		    newval_sz = header_arity(*newp) + 1;
 		    if (is_boxed(oldval)) {
@@ -2727,7 +2727,7 @@ void db_do_update_element(DbUpdateHandle* handle,
 			switch (*oldp & _TAG_HEADER_MASK) {
 			case _TAG_HEADER_POS_BIG:
 			case _TAG_HEADER_NEG_BIG:
-			case _TAG_HEADER_FLOAT:
+			case _TAG_HEADER_HFLOAT:
 			case _TAG_HEADER_HEAP_BIN:
 			    oldval_sz = header_arity(*oldp) + 1;
 			    if (oldval_sz == newval_sz) {
@@ -3439,13 +3439,13 @@ static DMCRet dmc_one_term(DMCContext *context,
 	    }
 	    break;
 	}
-	case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE):
+	case (_TAG_HEADER_HFLOAT >> _TAG_PRIMARY_SIZE):
 	    DMC_PUSH(*text,matchEqBoxedFloat);
-	    DMC_PUSH(*text, (Uint) boxed_float_val(c)[1]);
+	    DMC_PUSH(*text, (Uint) hfloat_val(c)[1]);
 #ifdef ARCH_64
 	    DMC_PUSH(*text, (Uint) 0);
 #else
-	    DMC_PUSH(*text, (Uint) boxed_float_val(c)[2]);
+	    DMC_PUSH(*text, (Uint) hfloat_val(c)[2]);
 #endif
 	    break;
 	default: /* BINARY, FUN, VECTOR, or EXTERNAL */

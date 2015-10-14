@@ -28,28 +28,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-Eterm make_flonum(double d)
+Eterm make_ifloat(double d)
 {
     FloatDef f;
     f.fd = d;
     if (f.fd != 0.0) {
-        f.fdw -= (Uint)FLONUM_EXP_MIN << 52;
+        f.fdw -= (Uint)IFLOAT_EXP_MIN << 52;
         ASSERT(f.fd != 0);
     }
     f.fdw = ((f.fdw << (1 + _TAG_IMMED1_SIZE)) |
              (f.fdw >> (64 - (1 + _TAG_IMMED1_SIZE))));
     ASSERT((f.fdw & _TAG_IMMED1_MASK) == 0);
-    return f.fdw | _TAG_IMMED1_FLONUM;
+    return f.fdw | _TAG_IMMED1_IFLOAT;
 }
 
-double flonum_val(Eterm term)
+double ifloat_val(Eterm term)
 {
     FloatDef f;
     f.fdw = term & ~(Uint)_TAG_IMMED1_MASK;
     f.fdw = ((f.fdw >> (1 + _TAG_IMMED1_SIZE)) |
              (f.fdw << (64 - (1 + _TAG_IMMED1_SIZE))));
     if (f.fd != 0.0)
-        f.fdw += (Uint)FLONUM_EXP_MIN << 52;
+        f.fdw += (Uint)IFLOAT_EXP_MIN << 52;
     return f.fd;
 }
 
@@ -106,7 +106,7 @@ unsigned tag_val_def(Wterm x)
 	    case (_TAG_HEADER_POS_BIG >> _TAG_PRIMARY_SIZE):	return BIG_DEF;
 	    case (_TAG_HEADER_NEG_BIG >> _TAG_PRIMARY_SIZE):	return BIG_DEF;
 	    case (_TAG_HEADER_REF >> _TAG_PRIMARY_SIZE):	return REF_DEF;
-	    case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE):	return FLOAT_DEF;
+	    case (_TAG_HEADER_HFLOAT >> _TAG_PRIMARY_SIZE):	return FLOAT_DEF;
 	    case (_TAG_HEADER_EXPORT >> _TAG_PRIMARY_SIZE):     return EXPORT_DEF;
 	    case (_TAG_HEADER_FUN >> _TAG_PRIMARY_SIZE):	return FUN_DEF;
 	    case (_TAG_HEADER_EXTERNAL_PID >> _TAG_PRIMARY_SIZE):	return EXTERNAL_PID_DEF;
@@ -133,7 +133,7 @@ unsigned tag_val_def(Wterm x)
 		break;
 	    }
             case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):	return SMALL_DEF;
-            case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE):	return FLOAT_DEF;
+            case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):	return FLOAT_DEF;
 	  }
 	  break;
       }
@@ -175,7 +175,7 @@ ET_DEFINE_CHECKED(int,bignum_header_is_neg,Eterm,_is_bignum_header);
 ET_DEFINE_CHECKED(Eterm,bignum_header_neg,Eterm,_is_bignum_header);
 ET_DEFINE_CHECKED(Uint,bignum_header_arity,Eterm,_is_bignum_header);
 ET_DEFINE_CHECKED(Eterm*,big_val,Wterm,is_big);
-ET_DEFINE_CHECKED(Eterm*,float_val,Wterm,is_float);
+ET_DEFINE_CHECKED(Eterm*,hfloat_val,Wterm,is_hfloat);
 ET_DEFINE_CHECKED(Eterm*,tuple_val,Wterm,is_tuple);
 ET_DEFINE_CHECKED(struct erl_node_*,internal_pid_node,Eterm,is_internal_pid);
 ET_DEFINE_CHECKED(struct erl_node_*,internal_port_node,Eterm,is_internal_port);

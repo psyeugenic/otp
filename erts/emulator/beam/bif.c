@@ -3172,7 +3172,7 @@ static int do_float_to_charbuf(Process *p, Eterm efloat, Eterm list,
         goto badarg;
     }
 
-    GET_ANY_DOUBLE(efloat, f);
+    GET_ANY_FLOAT(efloat, f);
 
     if (fmt_type == FMT_FIXED) {
         return sys_double_to_chars_fast(f.fd, fbuf, sizeof_fbuf,
@@ -3407,14 +3407,14 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
 	error_res = am_no_float;
 	goto error;
     }
-    if (IS_DBL_FLONUM(f.fd)) {
-	fterm = make_flonum(f.fd);
+    if (IS_IFLOAT(f.fd)) {
+	fterm = make_ifloat(f.fd);
 	hp = HAlloc(BIF_P, 3); 
     } else {
-	hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT + 3);
-	fterm = make_boxed_float(hp);
-	PUT_BOXED_DOUBLE(f, hp);
-	hp += FLOAT_SIZE_OBJECT;
+	hp = HAlloc(BIF_P, HFLOAT_SIZE_OBJECT + 3);
+	fterm = make_hfloat(hp);
+	PUT_HFLOAT(f, hp);
+	hp += HFLOAT_SIZE_OBJECT;
     }
     tup = TUPLE2(hp, fterm, list);
     erts_free(ERTS_ALC_T_TMP, (void *) buf);

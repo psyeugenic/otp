@@ -1896,8 +1896,8 @@ load_code(LoaderState* stp)
 			    Uint high, low;
 # endif
 			    last_op->a[arg].val = new_literal(stp, &hp,
-							      FLOAT_SIZE_OBJECT);
-			    hp[0] = HEADER_FLONUM;
+							      HFLOAT_SIZE_OBJECT);
+			    hp[0] = HEADER_HFLOAT;
 			    last_op->a[arg].type = TAG_q;
 #if defined(ARCH_64)
 			    GetInt(stp, 8, hp[1]);
@@ -1953,7 +1953,7 @@ load_code(LoaderState* stp)
 				    words += val;
 				    break;
 				case 1:
-				    words += FLOAT_SIZE_OBJECT*val;
+				    words += HFLOAT_SIZE_OBJECT*val;
 				    break;
 				default:
 				    LoadError1(stp, "alloc list: bad allocation "

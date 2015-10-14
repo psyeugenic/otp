@@ -2646,7 +2646,7 @@ enc_term_int(TTBEncodeContext* ctx, ErtsAtomCacheMap *acmp, Eterm obj, byte* ep,
 	    }
 	    break;
 	case FLOAT_DEF:
-	    GET_ANY_DOUBLE(obj, f);
+	    GET_ANY_FLOAT(obj, f);
 	    if (dflags & DFLAG_NEW_FLOATS) {
 		*ep++ = NEW_FLOAT_EXT;
 #if defined(WORDS_BIGENDIAN) || defined(DOUBLE_MIDDLE_ENDIAN)
@@ -4427,11 +4427,11 @@ init_done:
 	    break;
 	case FLOAT_EXT:
 	    SKIP(31);
-	    heap_size += FLOAT_SIZE_OBJECT;
+	    heap_size += HFLOAT_SIZE_OBJECT;
 	    break;
 	case NEW_FLOAT_EXT:
 	    SKIP(8);
-	    heap_size += FLOAT_SIZE_OBJECT;
+	    heap_size += HFLOAT_SIZE_OBJECT;
 	    break;
 	case BINARY_EXT:
 	    CHKSIZE(4);

@@ -867,7 +867,7 @@ void** beam_ops;
    Eterm _result; Sint _size;						\
    if (!is_small(Sz) || (_size = unsigned_val(Sz)) > 64) { Fail; }	\
    _size *= ((Flags) >> 3);						\
-   TestHeap(FLOAT_SIZE_OBJECT, Live);					\
+   TestHeap(HFLOAT_SIZE_OBJECT, Live);					\
    _mb = ms_matchbuffer(Ms);						\
    LIGHT_SWAPOUT;							\
    _result = erts_bs_get_float_2(c_p, _size, (Flags), _mb);		\
@@ -4615,7 +4615,7 @@ do {						\
      BeamInstr *next;
 
      PreFetch(2, next);
-     GET_ANY_DOUBLE(Arg(0), *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     GET_ANY_FLOAT(Arg(0), *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      NextPF(2, next);
  }
 
@@ -4626,8 +4626,8 @@ do {						\
 
      PreFetch(2, next);
      targ1 = REG_TARGET(Arg(0));
-     /* Arg(0) == HEADER_FLONUM */
-     GET_ANY_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     /* Arg(0) == HEADER_HFLOAT */
+     GET_ANY_FLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      NextPF(2, next);
  }
 
@@ -4652,10 +4652,10 @@ do {						\
 	 if (big_to_double(targ1, &fb(fr)) < 0) {
 	     goto fbadarith;
 	 }
-     } else if (is_immed_float(targ1)) {
-	 ((FloatDef*)ADD_BYTE_OFFSET(freg, fr))->fd = flonum_val(targ1);
-     } else if (is_boxed_float(targ1)) {
-	 GET_BOXED_DOUBLE(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+     } else if (is_ifloat(targ1)) {
+	 ((FloatDef*)ADD_BYTE_OFFSET(freg, fr))->fd = ifloat_val(targ1);
+     } else if (is_hfloat(targ1)) {
+	 GET_HFLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      } else {
 	 goto fbadarith;
      }

@@ -455,7 +455,7 @@ print_term(fmtfn_t fn, void* arg, Eterm obj, long *dcount) {
 	    break;
 	case FLOAT_DEF: {
 	    FloatDef ff;
-	    GET_ANY_DOUBLE(wobj, ff);
+	    GET_ANY_FLOAT(wobj, ff);
 	    PRINT_DOUBLE(res, fn, arg, 'e', 6, 0, ff.fd);
 	}
 	    break;

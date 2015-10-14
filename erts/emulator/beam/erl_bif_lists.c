@@ -352,10 +352,10 @@ keyfind(int Bif, Process* p, Eterm Key, Eterm Pos, Eterm List)
 			return term;
 		    } else {
                         FloatDef f;
-                        if (is_immed_float(element)) {
-                            f.fd = flonum_val(element);
-                        } else if (is_boxed_float(element)) {
-                            GET_BOXED_DOUBLE(element, f);
+                        if (is_ifloat(element)) {
+                            f.fd = ifloat_val(element);
+                        } else if (is_hfloat(element)) {
+                            GET_HFLOAT(element, f);
                         } else
                             continue;
                         if (f.fd == float_key) {

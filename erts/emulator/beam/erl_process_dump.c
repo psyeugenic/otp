@@ -38,7 +38,7 @@
 #define PTR_FMT "%bpX"
 #define ETERM_FMT "%beX"
 
-#define OUR_NIL	_make_header(0,_TAG_HEADER_FLOAT)
+#define OUR_NIL	_make_header(0,_TAG_HEADER_HFLOAT)
 
 static void dump_process_info(int to, void *to_arg, Process *p);
 static void dump_element(int to, void *to_arg, Eterm x);
@@ -234,7 +234,9 @@ dump_element(int to, void *to_arg, Eterm x)
 		       port_channel_no(x), port_number(x));
 	} else if (is_nil(x)) {
 	    erts_putc(to, to_arg, 'N');
-	}
+	} else if (is_ifloat(x)) {
+            erts_print(to, to_arg, "F%T", x);
+        }
     }
 }
 
@@ -412,12 +414,12 @@ heap_dump(int to, void *to_arg, Eterm x)
 			next = ptr + arity - 1;
 			continue;
 		    }
-		} else if (hdr == HEADER_FLONUM) {
+		} else if (hdr == HEADER_HFLOAT) {
 		    FloatDef f;
 		    char sbuf[31];
 		    int i;
 
-		    GET_DOUBLE_DATA((ptr+1), f);
+		    GET_HFLOAT_DATA(ptr, f);
 		    i = sys_double_to_chars(f.fd, (char*) sbuf, sizeof(sbuf));
 		    sys_memset(sbuf+i, 0, 31-i);
 		    erts_print(to, to_arg, "F%X:%s\n", i, sbuf);

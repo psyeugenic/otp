@@ -864,10 +864,10 @@ int enif_get_uint64(ErlNifEnv* env, ERL_NIF_TERM term, ErlNifUInt64* ip)
 int enif_get_double(ErlNifEnv* env, ERL_NIF_TERM term, double* dp)
 {
     FloatDef f;
-    if (is_immed_float(term)) {
-        f.fd = flonum_val(term);
-    } else if (is_boxed_float(term)) {
-        GET_ANY_DOUBLE(term, f);
+    if (is_ifloat(term)) {
+        f.fd = ifloat_val(term);
+    } else if (is_hfloat(term)) {
+        GET_HFLOAT(term, f);
     } else
         return 0;
 
@@ -983,13 +983,13 @@ ERL_NIF_TERM enif_make_double(ErlNifEnv* env, double d)
 
     if (!erts_isfinite(d))
         return enif_make_badarg(env);
-    if (IS_DBL_FLONUM(d)) {
-	return make_flonum(d);
+    if (IS_IFLOAT(d)) {
+	return make_ifloat(d);
     }
-    hp = alloc_heap(env,FLOAT_SIZE_OBJECT);
+    hp = alloc_heap(env,HFLOAT_SIZE_OBJECT);
     f.fd = d;
-    PUT_BOXED_DOUBLE(f, hp);
-    return make_boxed_float(hp);
+    PUT_HFLOAT(f, hp);
+    return make_hfloat(hp);
 }
 
 ERL_NIF_TERM enif_make_atom(ErlNifEnv* env, const char* name)

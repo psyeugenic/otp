@@ -3821,8 +3821,8 @@ static Eterm table_info(Process* p, DbTable* tb, Eterm What)
             Eterm* hp_end;
 
 	    db_calc_stats_hash(&tb->hash, &stats);
-	    hp = HAlloc(p, 1 + 7 + FLOAT_SIZE_OBJECT*3);
-            hp_end = hp +  1 + 7 + FLOAT_SIZE_OBJECT*3;
+	    hp = HAlloc(p, 1 + 7 + HFLOAT_SIZE_OBJECT*3);
+            hp_end = hp +  1 + 7 + HFLOAT_SIZE_OBJECT*3;
 	    f.fd = stats.avg_chain_len;
             BUILD_FLOAT(f, hp, avg);
 	    f.fd = stats.std_dev_chain_len;

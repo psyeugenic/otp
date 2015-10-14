@@ -78,23 +78,23 @@ BIF_RETTYPE abs_1(BIF_ALIST_1)
 		*hp++ = *x++;
 	    BIF_RET(res);
 	}
-    } else if (is_immed_float(BIF_ARG_1)) {
-        double d = flonum_val(BIF_ARG_1);
+    } else if (is_ifloat(BIF_ARG_1)) {
+        double d = ifloat_val(BIF_ARG_1);
         if (d < 0.0) {
             d = fabs(d);
-            res = make_flonum(d);
+            res = make_ifloat(d);
             BIF_RET(res);
         } else
             BIF_RET(BIF_ARG_1);
-    } else if (is_boxed_float(BIF_ARG_1)) {
+    } else if (is_hfloat(BIF_ARG_1)) {
 	FloatDef f;
 
-	GET_BOXED_DOUBLE(BIF_ARG_1, f);
+	GET_HFLOAT(BIF_ARG_1, f);
 	if (f.fd < 0.0) {
-	    hp = HAlloc(BIF_P, FLOAT_SIZE_OBJECT);
+	    hp = HAlloc(BIF_P, HFLOAT_SIZE_OBJECT);
 	    f.fd = fabs(f.fd);
-	    res = make_boxed_float(hp);
-	    PUT_BOXED_DOUBLE(f, hp);
+	    res = make_hfloat(hp);
+	    PUT_HFLOAT(f, hp);
 	    BIF_RET(res);
 	}
 	else
@@ -139,7 +139,7 @@ BIF_RETTYPE trunc_1(BIF_ALIST_1)
 	BIF_ERROR(BIF_P, BADARG);
     }
     /* get the float */
-    GET_ANY_DOUBLE(BIF_ARG_1, f);
+    GET_ANY_FLOAT(BIF_ARG_1, f);
 
     /* truncate it and return the resultant integer */
     res = double_to_integer(BIF_P, (f.fd >= 0.0) ? floor(f.fd) : ceil(f.fd));
@@ -159,7 +159,7 @@ BIF_RETTYPE round_1(BIF_ALIST_1)
     }
      
     /* get the float */
-    GET_ANY_DOUBLE(BIF_ARG_1, f);
+    GET_ANY_FLOAT(BIF_ARG_1, f);
 
     /* round it and return the resultant integer */
     res = double_to_integer(BIF_P, (f.fd > 0.0) ? f.fd + 0.5 : f.fd - 0.5);
@@ -532,30 +532,30 @@ Eterm erts_gc_abs_1(Process* p, Eterm* reg, Uint live)
 		*hp++ = *x++;
 	    return res;
 	}
-    } else if (is_immed_float(arg)) {
-	double d = flonum_val(arg);
+    } else if (is_ifloat(arg)) {
+	double d = ifloat_val(arg);
 	if (d < 0.0) {
 	    d = fabs(d);
-	    res = make_flonum(d);
+	    res = make_ifloat(d);
 	    return res;
 	}
 	else {
 	    return arg;
         }
-    } else if (is_boxed_float(arg)) {
+    } else if (is_hfloat(arg)) {
 	FloatDef f;
 
-	GET_BOXED_DOUBLE(arg, f);
+	GET_HFLOAT(arg, f);
 	if (f.fd < 0.0) {
-	    if (ERTS_NEED_GC(p, FLOAT_SIZE_OBJECT)) {
-		erts_garbage_collect(p, FLOAT_SIZE_OBJECT, reg, live+1);
+	    if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {
+		erts_garbage_collect(p, HFLOAT_SIZE_OBJECT, reg, live+1);
 		arg = reg[live];
 	    }
 	    hp = p->htop;
-	    p->htop += FLOAT_SIZE_OBJECT;
+	    p->htop += HFLOAT_SIZE_OBJECT;
 	    f.fd = fabs(f.fd);
-	    res = make_boxed_float(hp);
-	    PUT_BOXED_DOUBLE(f, hp);
+	    res = make_hfloat(hp);
+	    PUT_HFLOAT(f, hp);
 	    return res;
 	}
 	else
@@ -587,17 +587,17 @@ Eterm erts_gc_float_1(Process* p, Eterm* reg, Uint live)
     } else if (big_to_double(arg, &f.fd) < 0) {
 	goto badarg;
     }
-    if (IS_DBL_FLONUM(f.fd)) {
-        return make_flonum(f.fd);
+    if (IS_IFLOAT(f.fd)) {
+        return make_ifloat(f.fd);
     }
-    if (ERTS_NEED_GC(p, FLOAT_SIZE_OBJECT)) {
-	erts_garbage_collect(p, FLOAT_SIZE_OBJECT, reg, live+1);
+    if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {
+	erts_garbage_collect(p, HFLOAT_SIZE_OBJECT, reg, live+1);
 	arg = reg[live];
     }
     hp = p->htop;
-    p->htop += FLOAT_SIZE_OBJECT;
-    res = make_boxed_float(hp);
-    PUT_BOXED_DOUBLE(f, hp);
+    p->htop += HFLOAT_SIZE_OBJECT;
+    res = make_hfloat(hp);
+    PUT_HFLOAT(f, hp);
     return res;
 }
 
@@ -613,7 +613,7 @@ Eterm erts_gc_round_1(Process* p, Eterm* reg, Uint live)
 	}
 	BIF_ERROR(p, BADARG);
     }
-    GET_ANY_DOUBLE(arg, f);
+    GET_ANY_FLOAT(arg, f);
 
     return gc_double_to_integer(p, (f.fd > 0.0) ? f.fd + 0.5 : f.fd - 0.5,
 				reg, live);
@@ -632,7 +632,7 @@ Eterm erts_gc_trunc_1(Process* p, Eterm* reg, Uint live)
 	BIF_ERROR(p, BADARG);
     }
     /* get the float */
-    GET_ANY_DOUBLE(arg, f);
+    GET_ANY_FLOAT(arg, f);
 
     /* truncate it and return the resultant integer */
     return gc_double_to_integer(p, (f.fd >= 0.0) ? floor(f.fd) : ceil(f.fd),

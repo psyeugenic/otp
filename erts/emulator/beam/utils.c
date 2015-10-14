@@ -958,7 +958,7 @@ tail_recur:
     case FLOAT_DEF: 
 	{
             FloatDef ff;
-            GET_ANY_DOUBLE(term, ff);
+            GET_ANY_FLOAT(term, ff);
             if (ff.fd == 0.0f) {
                 /* ensure positive 0.0 */
                 ff.fd = erts_get_positive_zero_float();
@@ -1476,9 +1476,9 @@ make_hash2(Eterm term)
 	    case EXTERNAL_PORT_SUBTAG:
 		UINT32_HASH(external_port_number(term), HCONST_6);
 		goto hash2_common;
-	    case FLOAT_SUBTAG:
+	    case HFLOAT_SUBTAG:
 	    {
-		GET_BOXED_DOUBLE(term, ff);
+		GET_HFLOAT(term, ff);
                 goto hash2_float;
 	    }
 	    break;
@@ -1528,8 +1528,8 @@ make_hash2(Eterm term)
 		  SINT32_HASH(x, HCONST);
 		  goto hash2_common;
 	      }
-            case _TAG_IMMED1_FLONUM:
-                ff.fd = flonum_val(term);
+            case _TAG_IMMED1_IFLOAT:
+                ff.fd = ifloat_val(term);
                 goto hash2_float;
 	    }
 	    break;
@@ -1906,9 +1906,9 @@ make_internal_hash(Eterm term)
             #endif
 		goto pop_next;
             }
-	    case FLOAT_SUBTAG:
+	    case HFLOAT_SUBTAG:
 	    {
-		GET_BOXED_DOUBLE(term, ff);
+		GET_HFLOAT(term, ff);
                 goto hash_float;
 	    }
 	    default:
@@ -1917,8 +1917,8 @@ make_internal_hash(Eterm term)
 	}
 	break;
         case TAG_PRIMARY_IMMED1:
-            if (is_immed_float(term)) {
-                ff.fd = flonum_val(term);
+            if (is_ifloat(term)) {
+                ff.fd = ifloat_val(term);
                 goto hash_float;
             }
         #if ERTS_SIZEOF_ETERM == 8
@@ -2103,7 +2103,7 @@ tail_recur:
     case FLOAT_DEF: 
 	{
             FloatDef ff;
-            GET_ANY_DOUBLE(term, ff);
+            GET_ANY_FLOAT(term, ff);
             if (ff.fd == 0.0f) {
                 /* ensure positive 0.0 */
                 ff.fd = erts_get_positive_zero_float();
@@ -2843,14 +2843,14 @@ tailrecur_ne:
 		    }
 		    goto pop_next;
 		}
-	    case FLOAT_SUBTAG:
+	    case HFLOAT_SUBTAG:
 		{
 		    FloatDef af;
 		    FloatDef bf;
   
-		    if (is_boxed_float(b)) {
-			GET_BOXED_DOUBLE(a, af);
-			GET_BOXED_DOUBLE(b, bf);
+		    if (is_hfloat(b)) {
+			GET_HFLOAT(a, af);
+			GET_HFLOAT(b, bf);
 			if (af.fd == bf.fd) goto pop_next;
 		    }
 		    break; /* not equal */
@@ -3014,9 +3014,9 @@ Sint erts_cmp(Eterm a, Eterm b, int exact, int eq_only)
         return cmp_atoms(a, b);
     } else if (is_both_small(a, b)) {
         return (signed_val(a) - signed_val(b));
-    } else if (is_immed_float(a) && is_immed_float(b)) {
-        double af = flonum_val(a);
-        double bf = flonum_val(b);
+    } else if (is_ifloat(a) && is_ifloat(b)) {
+        double af = ifloat_val(a);
+        double bf = ifloat_val(b);
         return float_comp(af, bf);
     }
     return erts_cmp_compound(a,b,exact,eq_only);
@@ -3139,18 +3139,18 @@ tailrecur_ne:
 	case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 	    a_tag = SMALL_DEF;
 	    goto mixed_types;
-        case (_TAG_IMMED1_FLONUM >> _TAG_PRIMARY_SIZE): {
+        case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE): {
             FloatDef af, bf;
 
-            if (is_immed_float(b)) {
-                bf.fd = flonum_val(b);
-            } else if (is_boxed_float(b)) {
-                GET_BOXED_DOUBLE(b, bf);
+            if (is_ifloat(b)) {
+                bf.fd = ifloat_val(b);
+            } else if (is_hfloat(b)) {
+                GET_HFLOAT(b, bf);
             } else {
                 a_tag = FLOAT_DEF;
                 goto mixed_types;
             }
-            af.fd = flonum_val(a);
+            af.fd = ifloat_val(a);
             ON_CMP_GOTO(float_comp(af.fd, bf.fd));
         }
 	case (_TAG_IMMED1_IMMED2 >> _TAG_PRIMARY_SIZE): {
@@ -3323,18 +3323,18 @@ tailrecur_ne:
                     sp->wstack_rollback = WSTACK_COUNT(stack);
                     goto bodyrecur;
 		}
-            case (_TAG_HEADER_FLOAT >> _TAG_PRIMARY_SIZE): {
+            case (_TAG_HEADER_HFLOAT >> _TAG_PRIMARY_SIZE): {
                 FloatDef af, bf;
 
-		if (is_immed_float(b)) {
-                    bf.fd = flonum_val(b);
-                } else if (is_boxed_float(b)) {
-		    GET_BOXED_DOUBLE(b, bf);
+		if (is_ifloat(b)) {
+                    bf.fd = ifloat_val(b);
+                } else if (is_hfloat(b)) {
+		    GET_HFLOAT(b, bf);
                 } else {
 		    a_tag = FLOAT_DEF;
 		    goto mixed_types;
 		}
-                GET_BOXED_DOUBLE(a, af);
+                GET_HFLOAT(a, af);
                 ON_CMP_GOTO(float_comp(af.fd, bf.fd));
             }
 	    case (_TAG_HEADER_POS_BIG >> _TAG_PRIMARY_SIZE):
@@ -3565,7 +3565,7 @@ tailrecur_ne:
 	    break;
 	case SMALL_FLOAT:
 	    if (exact) goto exact_fall_through;
-	    GET_ANY_DOUBLE(bw, f2);
+	    GET_ANY_FLOAT(bw, f2);
 	    if (f2.fd < MAX_LOSSLESS_FLOAT && f2.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
 		f1.fd = signed_val(aw);
@@ -3598,7 +3598,7 @@ tailrecur_ne:
 	}/* fall through */
 	case BIG_FLOAT:
 	    if (exact) goto exact_fall_through;
-	    GET_ANY_DOUBLE(bw, f2);
+	    GET_ANY_FLOAT(bw, f2);
 	    if ((f2.fd < (double) (MAX_SMALL + 1))
 		    && (f2.fd > (double) (MIN_SMALL - 1))) {
 		/* Float is a Sint */
@@ -3628,7 +3628,7 @@ tailrecur_ne:
 	    break;
 	case FLOAT_SMALL:
 	    if (exact) goto exact_fall_through;
-	    GET_ANY_DOUBLE(aw, f1);
+	    GET_ANY_FLOAT(aw, f1);
 	    if (f1.fd < MAX_LOSSLESS_FLOAT && f1.fd > MIN_LOSSLESS_FLOAT) {
 		/* Float is within the no loss limit */
 		f2.fd = signed_val(bw);

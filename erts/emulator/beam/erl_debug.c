@@ -182,7 +182,7 @@ pdisplay1(int to, void *to_arg, Process* p, Eterm obj)
 	break;
     case FLOAT_DEF: {
         FloatDef ff;
-        GET_ANY_DOUBLE(obj, ff);
+        GET_ANY_FLOAT(obj, ff);
         erts_print(to, to_arg, "%.20e", ff.fd);
 	break;
     }
