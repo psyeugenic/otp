@@ -32,7 +32,7 @@ Eterm make_ifloat(double d)
 {
     FloatDef f;
     f.fd = d;
-    if (f.fd != 0.0) {
+    if (!HAVE_IFLOAT_ZERO || f.fd != 0.0) {
         f.fdw -= (Uint)IFLOAT_EXP_MIN << 52;
         ASSERT(f.fd != 0);
     }
@@ -48,7 +48,7 @@ double ifloat_val(Eterm term)
     f.fdw = term & ~(Uint)_TAG_IMMED1_MASK;
     f.fdw = ((f.fdw >> (1 + _TAG_IMMED1_SIZE)) |
              (f.fdw << (64 - (1 + _TAG_IMMED1_SIZE))));
-    if (f.fd != 0.0)
+    if (!HAVE_IFLOAT_ZERO || f.fd != 0.0)
         f.fdw += (Uint)IFLOAT_EXP_MIN << 52;
     return f.fd;
 }

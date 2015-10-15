@@ -264,8 +264,18 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
  * Basically the exponent is reduced by an offset to fit in 7 bits,
  * the entire word is rotated left 5 bits and the tag is added on.
  * 
- * Float value 0.0 is a special case, all e's and M's are zero (S may be set).
+ * +0.0 and -0.0 are currently not IFLOAT's
+ *
+ * Why?
+ *
+ * +0.0 =:= -0.0 is true in Erlang and has been so since the beginning.
+ *
+ * All other immediates are equal (=:=) iff the Eterm words are equal.
+ * 0.0 as ifloat would be an exception to that rule, in which case we must
+ * check for that exception at all places where immediates are compared.
  */
+#define HAVE_IFLOAT_ZERO 0
+
 #define IFLOAT_EXP_BITS (11 - _TAG_IMMED1_SIZE)
 #define IFLOAT_EXP_MIN  (1023 - (1 << (IFLOAT_EXP_BITS-1)))
 #define IFLOAT_EXP_MAX  (1023 + (1 << (IFLOAT_EXP_BITS-1)) - 1)
@@ -281,7 +291,8 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
  * <<IFLOAT_MAX/float>> = <<0:1, IFLOAT_EXP_MAX:11, -1:52>>
  */
 #define IFLOAT_MAX (1.844674407370955e19)
-#define IS_IFLOAT(D) (fabs(D) >= IFLOAT_MIN && fabs(D) <= IFLOAT_MAX)
+#define IS_IFLOAT(D) ((fabs(D) >= IFLOAT_MIN && fabs(D) <= IFLOAT_MAX) \
+                      || (HAVE_IFLOAT_ZERO && (D) == 0.0))
 
 Eterm make_ifloat(double);
 double ifloat_val(Eterm);
