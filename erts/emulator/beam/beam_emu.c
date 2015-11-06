@@ -4634,8 +4634,10 @@ do {						\
  OpCase(fmove_ld): {
      Eterm fr = Arg(0);
      Eterm dest;
-
-     BUILD_FLOAT(*(FloatDef*)ADD_BYTE_OFFSET(freg, fr), HTOP, dest);
+     FloatDef fd;
+     /* avoid destruction of register */
+     fd.fd = ((FloatDef*)ADD_BYTE_OFFSET(freg, fr))->fd;
+     BUILD_FLOAT(fd, HTOP, dest);
      StoreBifResult(1, dest);
  }
 

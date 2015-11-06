@@ -983,11 +983,12 @@ ERL_NIF_TERM enif_make_double(ErlNifEnv* env, double d)
 
     if (!erts_isfinite(d))
         return enif_make_badarg(env);
+    f.fd = d;
     if (IS_IFLOAT(d)) {
-	return make_ifloat(d);
+        ENC_IFLOAT(f);
+	return f.fdw;
     }
     hp = alloc_heap(env,HFLOAT_SIZE_OBJECT);
-    f.fd = d;
     PUT_HFLOAT(f, hp);
     return make_hfloat(hp);
 }

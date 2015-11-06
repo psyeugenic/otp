@@ -489,7 +489,11 @@ erts_bs_get_float_2(Process *p, Uint num_bits, unsigned flags, ErlBinMatchBuffer
 
     CHECK_MATCH_BUFFER(mb);
     if (num_bits == 0) {
-	return make_ifloat(0.0);
+        f.fd = 0.0;
+        ASSERT(!HAVE_IFLOAT_ZERO);
+        hp = HeapOnlyAlloc(p, HFLOAT_SIZE_OBJECT);
+        PUT_HFLOAT(f, hp);
+        return make_hfloat(hp);
     }
     if (mb->size - mb->offset < num_bits) {	/* Asked for too many bits.  */
 	return THE_NON_VALUE;
@@ -530,7 +534,8 @@ erts_bs_get_float_2(Process *p, Uint num_bits, unsigned flags, ErlBinMatchBuffer
     mb->offset += num_bits;
 
     if (IS_IFLOAT(f.fd)) {
-        return make_ifloat(f.fd);
+        ENC_IFLOAT(f);
+        return f.fdw;
     }
     hp = HeapOnlyAlloc(p, HFLOAT_SIZE_OBJECT);
     PUT_HFLOAT(f, hp);

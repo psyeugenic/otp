@@ -5637,7 +5637,8 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 		ERTS_DDT_FAIL;
 
             if (IS_IFLOAT(f.fd)) {
-		mess = make_ifloat(f.fd);
+                ENC_IFLOAT(f);
+		mess = f.fdw;
             } else {
 		Eterm *fp = erts_produce_heap(&factory, HFLOAT_SIZE_OBJECT, HEAP_EXTRA); 
 
