@@ -294,8 +294,6 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
 #define IS_IFLOAT(D) ((fabs(D) >= IFLOAT_MIN && fabs(D) <= IFLOAT_MAX) \
                       || (HAVE_IFLOAT_ZERO && (D) == 0.0))
 
-Eterm make_ifloat(double);
-
 /* NIL access methods */
 #define NIL		((~((Uint) 0) << _TAG_IMMED2_SIZE) | _TAG_IMMED2_NIL)
 #define is_nil(x)	((x) == NIL)
@@ -480,6 +478,17 @@ typedef union float_def
 			  *((x)+2) = (f).fw[1]
 #endif
 
+#define ENC_IFLOAT(f) do {                                \
+    if (!HAVE_IFLOAT_ZERO || (f).fd != 0.0) {             \
+        (f).fdw -= (Uint)IFLOAT_EXP_MIN << 52;            \
+        ASSERT((f).fd != 0);                              \
+    }                                                     \
+    (f).fdw = (((f).fdw << (1 + _TAG_IMMED1_SIZE)) |      \
+             ((f).fdw >> (64 - (1 + _TAG_IMMED1_SIZE)))); \
+    ASSERT(((f).fdw & _TAG_IMMED1_MASK) == 0);            \
+    (f).fdw |= _TAG_IMMED1_IFLOAT;                        \
+} while(0)
+
 #define GET_IFLOAT(x, f) do {                               \
     (f).fdw = (x) & ~(Uint)_TAG_IMMED1_MASK;                \
     (f).fdw = (((f).fdw >> (1 + _TAG_IMMED1_SIZE)) |        \
@@ -499,18 +508,20 @@ typedef union float_def
 #define BUILD_FLOAT(f, x, res) do {             \
     FloatDef* fdp_ = &(f);                      \
     if (IS_IFLOAT(fdp_->fd)) {                  \
-	(res) = make_ifloat(fdp_->fd);          \
+        ENC_IFLOAT(*fdp_);                      \
+	(res) = ((Eterm)fdp_->fdw);             \
     } else {                                    \
 	(res) = make_hfloat(x);                 \
         PUT_HFLOAT(*fdp_, (x));                 \
 	(x) += HFLOAT_SIZE_OBJECT;              \
     }                                           \
-}while(0)
+} while(0)
 
 #define BUILD_FLOAT_HALLOC(p, f, res) do {          \
     FloatDef* fdp_ = &(f);                          \
     if (IS_IFLOAT(fdp_->fd)) {                      \
-	(res) = make_ifloat(fdp_->fd);              \
+        ENC_IFLOAT(*fdp_);                          \
+	(res) = ((Eterm)fdp_->fdw);                 \
     } else {                                        \
         Eterm* hp_ = HAlloc(p, HFLOAT_SIZE_OBJECT); \
 	(res) = make_hfloat(hp_);                   \
@@ -521,7 +532,8 @@ typedef union float_def
 #define BUILD_FLOAT_GC(p, reg, live, f, res) do {                           \
     FloatDef* fdp_ = &(f);                                                  \
     if (IS_IFLOAT(fdp_->fd)) {                                              \
-	(res) = make_ifloat(fdp_->fd);                                      \
+        ENC_IFLOAT(*fdp_);                                                  \
+	(res) = ((Eterm)fdp_->fdw);                                         \
     } else {                                                                \
         if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {                          \
             erts_garbage_collect((p), HFLOAT_SIZE_OBJECT, (reg), (live));   \

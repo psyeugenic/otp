@@ -83,7 +83,8 @@ BIF_RETTYPE abs_1(BIF_ALIST_1)
         GET_IFLOAT(BIF_ARG_1, f);
         if (f.fd < 0.0) {
             f.fd = fabs(f.fd);
-            res = make_ifloat(f.fd);
+            ENC_IFLOAT(f);
+            res = f.fdw;
             BIF_RET(res);
         } else
             BIF_RET(BIF_ARG_1);
@@ -538,7 +539,8 @@ Eterm erts_gc_abs_1(Process* p, Eterm* reg, Uint live)
 	GET_IFLOAT(arg, f);
 	if (f.fd < 0.0) {
 	    f.fd = fabs(f.fd);
-	    res = make_ifloat(f.fd);
+            ENC_IFLOAT(f);
+	    res = f.fdw;
 	    return res;
 	}
 	else {
@@ -590,7 +592,8 @@ Eterm erts_gc_float_1(Process* p, Eterm* reg, Uint live)
 	goto badarg;
     }
     if (IS_IFLOAT(f.fd)) {
-        return make_ifloat(f.fd);
+        ENC_IFLOAT(f);
+        return f.fdw;
     }
     if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {
 	erts_garbage_collect(p, HFLOAT_SIZE_OBJECT, reg, live+1);

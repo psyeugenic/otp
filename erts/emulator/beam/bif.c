@@ -3408,7 +3408,8 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
 	goto error;
     }
     if (IS_IFLOAT(f.fd)) {
-	fterm = make_ifloat(f.fd);
+        ENC_IFLOAT(f);
+	fterm = f.fdw;
 	hp = HAlloc(BIF_P, 3); 
     } else {
 	hp = HAlloc(BIF_P, HFLOAT_SIZE_OBJECT + 3);
