@@ -353,7 +353,7 @@ keyfind(int Bif, Process* p, Eterm Key, Eterm Pos, Eterm List)
 		    } else {
                         FloatDef f;
                         if (is_ifloat(element)) {
-                            f.fd = ifloat_val(element);
+                            GET_IFLOAT(element, f);
                         } else if (is_hfloat(element)) {
                             GET_HFLOAT(element, f);
                         } else

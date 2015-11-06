@@ -865,7 +865,7 @@ int enif_get_double(ErlNifEnv* env, ERL_NIF_TERM term, double* dp)
 {
     FloatDef f;
     if (is_ifloat(term)) {
-        f.fd = ifloat_val(term);
+        GET_IFLOAT(term, f);
     } else if (is_hfloat(term)) {
         GET_HFLOAT(term, f);
     } else
