@@ -1529,7 +1529,7 @@ make_hash2(Eterm term)
 		  goto hash2_common;
 	      }
             case _TAG_IMMED1_IFLOAT:
-                ff.fd = ifloat_val(term);
+                GET_IFLOAT(term, ff);
                 goto hash2_float;
 	    }
 	    break;
@@ -1918,7 +1918,7 @@ make_internal_hash(Eterm term)
 	break;
         case TAG_PRIMARY_IMMED1:
             if (is_ifloat(term)) {
-                ff.fd = ifloat_val(term);
+                GET_IFLOAT(term, ff);
                 goto hash_float;
             }
         #if ERTS_SIZEOF_ETERM == 8
@@ -3015,9 +3015,10 @@ Sint erts_cmp(Eterm a, Eterm b, int exact, int eq_only)
     } else if (is_both_small(a, b)) {
         return (signed_val(a) - signed_val(b));
     } else if (is_ifloat(a) && is_ifloat(b)) {
-        double af = ifloat_val(a);
-        double bf = ifloat_val(b);
-        return float_comp(af, bf);
+        FloatDef af,bf;
+        GET_IFLOAT(a, af);
+        GET_IFLOAT(b, bf);
+        return float_comp(af.fd, bf.fd);
     }
     return erts_cmp_compound(a,b,exact,eq_only);
 }
@@ -3143,14 +3144,14 @@ tailrecur_ne:
             FloatDef af, bf;
 
             if (is_ifloat(b)) {
-                bf.fd = ifloat_val(b);
+                GET_IFLOAT(b, bf);
             } else if (is_hfloat(b)) {
                 GET_HFLOAT(b, bf);
             } else {
                 a_tag = FLOAT_DEF;
                 goto mixed_types;
             }
-            af.fd = ifloat_val(a);
+            GET_IFLOAT(a, af);
             ON_CMP_GOTO(float_comp(af.fd, bf.fd));
         }
 	case (_TAG_IMMED1_IMMED2 >> _TAG_PRIMARY_SIZE): {
@@ -3327,7 +3328,7 @@ tailrecur_ne:
                 FloatDef af, bf;
 
 		if (is_ifloat(b)) {
-                    bf.fd = ifloat_val(b);
+                    GET_IFLOAT(b, bf);
                 } else if (is_hfloat(b)) {
 		    GET_HFLOAT(b, bf);
                 } else {

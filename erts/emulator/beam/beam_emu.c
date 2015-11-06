@@ -4653,7 +4653,7 @@ do {						\
 	     goto fbadarith;
 	 }
      } else if (is_ifloat(targ1)) {
-	 ((FloatDef*)ADD_BYTE_OFFSET(freg, fr))->fd = ifloat_val(targ1);
+         GET_IFLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      } else if (is_hfloat(targ1)) {
 	 GET_HFLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      } else {

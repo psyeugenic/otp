@@ -1050,7 +1050,9 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 	    } u;
 
             if (is_ifloat(arg)) {
-                u.f64 = ifloat_val(arg);
+                FloatDef f;
+                GET_IFLOAT(arg, f);
+                u.f64 = f.fd;
 #ifdef DOUBLE_MIDDLE_ENDIAN
 		a = u.i32[1];
 		b = u.i32[0];
@@ -1098,9 +1100,10 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 
 	    b = 0;
             if (is_ifloat(arg)) {
-                double f64 = ifloat_val(arg);
+		FloatDef f;
+                GET_IFLOAT(arg, f);
                 ERTS_FP_CHECK_INIT(c_p);
-                u.f32 = f64;
+                u.f32 = f.fd;
                 ERTS_FP_ERROR(c_p,u.f32,;);
                 a = u.i32;
             } else if (is_hfloat(arg)) {
@@ -1190,10 +1193,12 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
 	
 	if (num_bits == 64) {
             if (is_ifloat(arg)) {
-                f64 = ifloat_val(arg);
 #ifdef DOUBLE_MIDDLE_ENDIAN
-		ftmp.fd = f64;
+                GET_IFLOAT(arg, ftmp);
 #else
+                FloatDef ff;
+                GET_IFLOAT(arg, ff);
+                f64 = ff.fd;
 		bptr = (byte *) &f64;
 #endif
             } else if (is_hfloat(arg)) {
@@ -1233,7 +1238,7 @@ erts_new_bs_put_float(Process *c_p, Eterm arg, Uint num_bits, int flags)
             } else {
                 FloatDef f;
                 if (is_ifloat(arg)) {
-                    f.fd = ifloat_val(arg);
+                    GET_IFLOAT(arg, f);
                 } else if (is_hfloat(arg)) {
                     GET_HFLOAT(arg, f);
                 } else if (is_big(arg)) {

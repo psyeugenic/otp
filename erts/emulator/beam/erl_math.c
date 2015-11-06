@@ -38,7 +38,7 @@ math_call_1(Process* p, double (*func)(double), Eterm arg1)
 
     ERTS_FP_CHECK_INIT(p);
     if (is_ifloat(arg1)) {
-        a1.fd = ifloat_val(arg1);
+        GET_IFLOAT(arg1, a1);
     } else if (is_hfloat(arg1)) {
         GET_HFLOAT(arg1, a1);
     } else if (is_small(arg1)) {
@@ -69,7 +69,7 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
 
     ERTS_FP_CHECK_INIT(p);
     if (is_ifloat(arg1)) {
-        a1.fd = ifloat_val(arg1);
+        GET_IFLOAT(arg1, a1);
     } else if (is_hfloat(arg1)) {
 	GET_HFLOAT(arg1, a1);
     } else if (is_small(arg1)) {
@@ -86,7 +86,7 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
     }
 
     if (is_ifloat(arg2)) {
-        a2.fd = ifloat_val(arg2);
+        GET_IFLOAT(arg2, a2);
     } else if (is_hfloat(arg2)) {
         GET_HFLOAT(arg2, a2);
     } else if (is_small(arg2)) {

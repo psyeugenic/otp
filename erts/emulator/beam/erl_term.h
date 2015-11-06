@@ -295,7 +295,6 @@ _ET_DECLARE_CHECKED(Sint,signed_val,Eterm)
                       || (HAVE_IFLOAT_ZERO && (D) == 0.0))
 
 Eterm make_ifloat(double);
-double ifloat_val(Eterm);
 
 /* NIL access methods */
 #define NIL		((~((Uint) 0) << _TAG_IMMED2_SIZE) | _TAG_IMMED2_NIL)
@@ -481,10 +480,18 @@ typedef union float_def
 			  *((x)+2) = (f).fw[1]
 #endif
 
-#define GET_HFLOAT(x, f)    GET_HFLOAT_DATA(hfloat_val(x), f)
-#define GET_ANY_FLOAT(x, f) (is_immed(x) ? (void)((f).fd = ifloat_val(x)) \
-                              :  (void)(GET_HFLOAT(x,f)))
+#define GET_IFLOAT(x, f) do {                               \
+    (f).fdw = (x) & ~(Uint)_TAG_IMMED1_MASK;                \
+    (f).fdw = (((f).fdw >> (1 + _TAG_IMMED1_SIZE)) |        \
+               ((f).fdw << (64 - (1 + _TAG_IMMED1_SIZE)))); \
+    if (!HAVE_IFLOAT_ZERO || (f).fd != 0.0)                 \
+        (f).fdw += (Uint)IFLOAT_EXP_MIN << 52;              \
+} while(0)
 
+
+#define GET_HFLOAT(x, f)    GET_HFLOAT_DATA(hfloat_val(x), f)
+#define GET_ANY_FLOAT(x, f) \
+    if(!is_immed(x)) GET_HFLOAT(x,f); else GET_IFLOAT(x,f)
 
 #define HFLOAT_DATA_WORDS (sizeof(ieee754_8)/sizeof(Eterm))
 #define HFLOAT_SIZE_OBJECT (HFLOAT_DATA_WORDS+1)

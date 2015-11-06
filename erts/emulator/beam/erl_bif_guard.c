@@ -79,10 +79,11 @@ BIF_RETTYPE abs_1(BIF_ALIST_1)
 	    BIF_RET(res);
 	}
     } else if (is_ifloat(BIF_ARG_1)) {
-        double d = ifloat_val(BIF_ARG_1);
-        if (d < 0.0) {
-            d = fabs(d);
-            res = make_ifloat(d);
+	FloatDef f;
+        GET_IFLOAT(BIF_ARG_1, f);
+        if (f.fd < 0.0) {
+            f.fd = fabs(f.fd);
+            res = make_ifloat(f.fd);
             BIF_RET(res);
         } else
             BIF_RET(BIF_ARG_1);
@@ -533,10 +534,11 @@ Eterm erts_gc_abs_1(Process* p, Eterm* reg, Uint live)
 	    return res;
 	}
     } else if (is_ifloat(arg)) {
-	double d = ifloat_val(arg);
-	if (d < 0.0) {
-	    d = fabs(d);
-	    res = make_ifloat(d);
+	FloatDef f;
+	GET_IFLOAT(arg, f);
+	if (f.fd < 0.0) {
+	    f.fd = fabs(f.fd);
+	    res = make_ifloat(f.fd);
 	    return res;
 	}
 	else {
