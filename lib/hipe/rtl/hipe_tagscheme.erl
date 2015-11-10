@@ -87,7 +87,7 @@
 -define(TAG_IMMED1_SIZE,  4).
 -define(TAG_IMMED1_MASK,  16#F).
 -define(TAG_IMMED1_PID,   ((16#0 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_IMMED1)).
--define(TAG_IMMED1_PORT,  ((16#1 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_IMMED1)).
+-define(TAG_IMMED1_IFLOAT,((16#1 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_IMMED1)).
 -define(TAG_IMMED1_IMMED2,((16#2 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_IMMED1)).
 -define(TAG_IMMED1_SMALL, ((16#3 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_IMMED1)).
 
@@ -95,6 +95,7 @@
 -define(TAG_IMMED2_MASK,  16#3F).
 -define(TAG_IMMED2_ATOM,  ((16#0 bsl ?TAG_IMMED1_SIZE) bor ?TAG_IMMED1_IMMED2)).
 -define(TAG_IMMED2_CATCH, ((16#1 bsl ?TAG_IMMED1_SIZE) bor ?TAG_IMMED1_IMMED2)).
+-define(TAG_IMMED2_PORT,  ((16#2 bsl ?TAG_IMMED1_SIZE) bor ?TAG_IMMED1_IMMED2)).
 -define(TAG_IMMED2_NIL,   ((16#3 bsl ?TAG_IMMED1_SIZE) bor ?TAG_IMMED1_IMMED2)).
 
 -define(TAG_HEADER_ARITYVAL,((16#0 bsl ?TAG_PRIMARY_SIZE) bor ?TAG_PRIMARY_HEADER)).
@@ -211,7 +212,8 @@ test_external_pid(X, TrueLab, FalseLab, Pred) ->
 		    TrueLab, FalseLab, Pred)].
 
 test_internal_port(X, TrueLab, FalseLab, Pred) ->
-  test_immed1(X, ?TAG_IMMED1_PORT, TrueLab, FalseLab, Pred).
+  mask_and_compare(X, ?TAG_IMMED2_MASK, ?TAG_IMMED2_PORT,
+		   TrueLab, FalseLab, Pred).
 
 test_any_port(X, TrueLab, FalseLab, Pred) ->
   NotInternalPortLab = hipe_rtl:mk_new_label(),
@@ -316,10 +318,19 @@ test_fun2(X, Arity, TrueLab, FalseLab, Pred) ->
    hipe_rtl:mk_load_atom(TFalse, 'false'),
    hipe_rtl:mk_branch(Tmp, 'ne', TFalse, TrueLab, FalseLab, Pred)].
 
+test_flonum(X, TrueLab, FalseLab, Pred) ->
+  Lab = hipe_rtl:mk_new_label(),
+  [test_ifloat(X, TrueLab, hipe_rtl:label_name(Lab), 0.5),
+   Lab,
+   test_hfloat(X, TrueLab, FalseLab, Pred)].
+
+test_ifloat(X, TrueLab, FalseLab, Pred) ->
+  test_immed1(X, ?TAG_IMMED1_IFLOAT, TrueLab, FalseLab, Pred).
+
 flonum_header() ->
   mk_header(8 div hipe_rtl_arch:word_size(), ?TAG_HEADER_FLOAT).
 
-test_flonum(X, TrueLab, FalseLab, Pred) ->
+test_hfloat(X, TrueLab, FalseLab, Pred) ->
   HeaderFlonum = flonum_header(),
   Tmp = hipe_rtl:mk_new_reg_gcsafe(),
   HalfTrueLab = hipe_rtl:mk_new_label(),
@@ -402,17 +413,20 @@ test_number(X, TrueLab, FalseLab, Pred) ->
   Lab1 = hipe_rtl:mk_new_label(),
   Lab2 = hipe_rtl:mk_new_label(),
   Lab3 = hipe_rtl:mk_new_label(),
+  Lab4 = hipe_rtl:mk_new_label(),
   Tmp = hipe_rtl:mk_new_reg_gcsafe(),
   BigMask = ?TAG_HEADER_MASK - ?BIG_SIGN_BIT,
   HeaderFlonum = flonum_header(),
   [test_fixnum(X, TrueLab, hipe_rtl:label_name(Lab1), 0.5),
    Lab1,
-   test_is_boxed(X, hipe_rtl:label_name(Lab2), FalseLab, 0.5),
+   test_ifloat(X, TrueLab, hipe_rtl:label_name(Lab2), 0.5),
    Lab2,
+   test_is_boxed(X, hipe_rtl:label_name(Lab3), FalseLab, 0.5),
+   Lab3,
    get_header(Tmp, X),
    mask_and_compare(Tmp, BigMask, ?TAG_HEADER_POS_BIG,
-		    TrueLab, hipe_rtl:label_name(Lab3), 0.5),
-   Lab3,
+		    TrueLab, hipe_rtl:label_name(Lab4), 0.5),
+   Lab4,
    hipe_rtl:mk_branch(Tmp, 'eq', hipe_rtl:mk_imm(HeaderFlonum),
 		      TrueLab, FalseLab, Pred)].
 
