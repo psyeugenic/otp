@@ -59,8 +59,10 @@
 	 handle_fp_exception/0,
 	 pcb_load/2,
 	 pcb_load/3,
+         pcb_fload/2,
 	 pcb_store/2,
 	 pcb_store/3,
+         pcb_fstore/2,
 	 pcb_address/2,
 	 call_bif/5,
 	 %% alignment/0,
@@ -618,10 +620,16 @@ pcb_load(Dst, Off) -> pcb_load(Dst, Off, word).
 pcb_load(Dst, Off, Size) ->
   hipe_rtl:mk_load(Dst, proc_pointer(), hipe_rtl:mk_imm(Off), Size, unsigned).
 
+pcb_fload(Dst, Off) ->
+  hipe_rtl:mk_fload(Dst, proc_pointer(), hipe_rtl:mk_imm(Off)).
+
 pcb_store(Off, Src) -> pcb_store(Off, Src, word).
 
 pcb_store(Off, Src, Size) ->
   hipe_rtl:mk_store(proc_pointer(), hipe_rtl:mk_imm(Off), Src, Size).
+
+pcb_fstore(Off, Src) ->
+  hipe_rtl:mk_fstore(proc_pointer(), hipe_rtl:mk_imm(Off), Src).
 
 pcb_address(Dst, Off) ->
   hipe_rtl:mk_alu(Dst, proc_pointer(), 'add', hipe_rtl:mk_imm(Off)).
@@ -669,7 +677,6 @@ nr_of_return_regs() ->
       1
     %% hipe_amd64_registers:nr_rets();
   end.
-
 
 mk_fp_check_result(Result) ->
     case ?ERTS_NO_FPE_SIGNALS of

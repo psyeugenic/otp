@@ -431,7 +431,10 @@ gen_type_test([X], Type, TrueLbl, FalseLbl, Pred, ConstTab) ->
     fixnum ->
       {hipe_tagscheme:test_fixnum(X, TrueLbl, FalseLbl, Pred), ConstTab};
     float ->
-      {hipe_tagscheme:test_flonum(X, TrueLbl, FalseLbl, Pred), ConstTab};
+      Lbl = hipe_rtl:mk_new_label(),
+      {[hipe_tagscheme:test_ifloat(X, TrueLbl, hipe_rtl:label_name(Lbl), Pred),
+        Lbl,
+        hipe_tagscheme:test_hfloat(X, TrueLbl, FalseLbl, Pred)], ConstTab};
     function ->
       {hipe_tagscheme:test_fun(X, TrueLbl, FalseLbl, Pred), ConstTab};
     integer ->

@@ -384,8 +384,7 @@ gen_primop({Op,Dst,Args,Cont,Fail}, IsGuard, ConstTab) ->
 	    [Arg] = Args,
 	    case Dst of
 	      [] ->
-		hipe_tagscheme:unsafe_untag_float(hipe_rtl:mk_new_fpreg(),
-						  Arg); 
+		hipe_tagscheme:unsafe_untag_float(hipe_rtl:mk_new_fpreg(), Arg);
 	      [Dst1]->
 		hipe_tagscheme:unsafe_untag_float(Dst1, Arg)
 	    end;
@@ -1225,30 +1224,43 @@ gen_conv_to_float(Dst, [Src], ContLbl, FailLbl) ->
       TmpReg = hipe_rtl:mk_new_reg_gcsafe(),
       TrueFixNum = hipe_rtl:mk_new_label(),
       ContFixNum = hipe_rtl:mk_new_label(),
-      TrueFp = hipe_rtl:mk_new_label(),
-      ContFp = hipe_rtl:mk_new_label(),
+      TrueIFloat = hipe_rtl:mk_new_label(),
+      TrueHFloat = hipe_rtl:mk_new_label(),
+      ContIFloat = hipe_rtl:mk_new_label(),
+      ContHFloat = hipe_rtl:mk_new_label(),
       ContBigNum = hipe_rtl:mk_new_label(),
       TestFixNum = hipe_tagscheme:test_fixnum(Src,
 					      hipe_rtl:label_name(TrueFixNum),
 					      hipe_rtl:label_name(ContFixNum),
 					      0.5),
-      TestFp = hipe_tagscheme:test_flonum(Src, hipe_rtl:label_name(TrueFp),
-					  hipe_rtl:label_name(ContFp), 0.5),
+      TestIFloat = hipe_tagscheme:test_ifloat(Src,
+                                              hipe_rtl:label_name(TrueIFloat),
+                                              hipe_rtl:label_name(ContIFloat),
+                                              0.5),
+      TestHFloat = hipe_tagscheme:test_hfloat(Src,
+                                              hipe_rtl:label_name(TrueHFloat),
+                                              hipe_rtl:label_name(ContHFloat),
+                                              0.5),
       GotoCont = hipe_rtl:mk_goto(ContLbl),
       TmpFailLbl0 = hipe_rtl:mk_new_label(),
       FailCode = fp_fail_code(TmpFailLbl0, FailLbl),
 
       TestFixNum ++
-	[TrueFixNum, 
+	[TrueFixNum,
     	 hipe_tagscheme:untag_fixnum(TmpReg, Src),
 	 hipe_rtl:mk_fconv(Dst, TmpReg),
 	 GotoCont,
-	 ContFixNum] ++ 
-	TestFp ++
-	[TrueFp, 
-	 hipe_tagscheme:unsafe_untag_float(Dst, Src), 
-	 GotoCont, 
-	 ContFp] ++
+	 ContFixNum] ++
+	TestIFloat ++
+	[TrueIFloat,
+	 hipe_tagscheme:unsafe_untag_ifloat(Dst, Src),
+	 GotoCont,
+	 ContIFloat] ++
+	TestHFloat ++
+	[TrueHFloat,
+	 hipe_tagscheme:unsafe_untag_hfloat(Dst, Src),
+	 GotoCont,
+	 ContHFloat] ++
 	[hipe_rtl:mk_call([Tmp], conv_big_to_float, [Src],
 			  hipe_rtl:label_name(ContBigNum),
 			  hipe_rtl:label_name(TmpFailLbl0), not_remote)]++
