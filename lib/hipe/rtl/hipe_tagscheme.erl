@@ -36,12 +36,14 @@
 -export([is_fixnum/1]).
 -export([tag_tuple/2, tag_cons/2]).
 -export([test_is_boxed/4, get_header/2]).
--export([test_nil/4, test_cons/4, test_flonum/4, test_fixnum/4,
+-export([test_nil/4, test_cons/4, test_fixnum/4,
+         test_flonum/4, test_ifloat/4, test_hfloat/4,
 	 test_tuple/4, test_atom/4, test_bignum/4, test_pos_bignum/4,
 	 test_any_pid/4, test_any_port/4,
 	 test_ref/4, test_fun/4, test_fun2/5, test_matchstate/4,
 	 test_binary/4, test_bitstr/4, test_list/4, test_map/4,
 	 test_integer/4, test_number/4, test_tuple_N/5]).
+-export([test_in_ifloat_range/4]).
 -export([realtag_fixnum/2, tag_fixnum/2, realuntag_fixnum/2, untag_fixnum/2]).
 -export([test_two_fixnums/3, test_fixnums/4, unsafe_fixnum_add/3,
 	 unsafe_fixnum_sub/3,
@@ -53,6 +55,8 @@
 -export([unsafe_closure_element/3]).
 -export([mk_fun_header/0, tag_fun/2]).
 -export([unsafe_untag_float/2, unsafe_tag_float/2]).
+-export([unsafe_untag_hfloat/2, unsafe_tag_hfloat/2]).
+-export([unsafe_untag_ifloat/2, unsafe_tag_ifloat/2]).
 -export([mk_sub_binary/6,mk_sub_binary/7]).
 -export([unsafe_mk_big/3, unsafe_load_float/3]).
 -export([bignum_sizeneed/1,bignum_sizeneed_code/2, get_one_word_pos_bignum/3]).
@@ -118,6 +122,9 @@
 
 -define(TAG_HEADER_MASK, 16#3F).
 -define(HEADER_ARITY_OFFS, 6).
+
+-define(IFLOAT_EXP_BITS, (11 - ?TAG_IMMED1_SIZE)).
+-define(IFLOAT_EXP_MIN,  (1023 - (1 bsl (?IFLOAT_EXP_BITS-1)))).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -320,9 +327,9 @@ test_fun2(X, Arity, TrueLab, FalseLab, Pred) ->
 
 test_flonum(X, TrueLab, FalseLab, Pred) ->
   Lab = hipe_rtl:mk_new_label(),
-  [test_ifloat(X, TrueLab, hipe_rtl:label_name(Lab), 0.5),
-   Lab,
-   test_hfloat(X, TrueLab, FalseLab, Pred)].
+  test_ifloat(X, TrueLab, hipe_rtl:label_name(Lab), 0.5) ++
+  [Lab] ++
+  test_hfloat(X, TrueLab, FalseLab, Pred).
 
 test_ifloat(X, TrueLab, FalseLab, Pred) ->
   test_immed1(X, ?TAG_IMMED1_IFLOAT, TrueLab, FalseLab, Pred).
@@ -925,10 +932,98 @@ unsafe_load_float(DstLo, DstHi, Src) ->
   end. 
 
 unsafe_untag_float(Dst, Src) ->
+  TLabel = hipe_rtl:mk_new_label(),
+  FLabel = hipe_rtl:mk_new_label(),
+  JLabel = hipe_rtl:mk_new_label(),
+  test_ifloat(Src, hipe_rtl:label_name(TLabel),
+                   hipe_rtl:label_name(FLabel), 0.5) ++
+  [FLabel] ++
+  unsafe_untag_hfloat(Dst,Src) ++
+  [hipe_rtl:mk_goto(hipe_rtl:label_name(JLabel)),
+   TLabel] ++
+  unsafe_untag_ifloat(Dst,Src) ++
+  [JLabel].
+
+unsafe_untag_ifloat(Dst, Src) ->
+  Tmp1 = hipe_rtl:mk_new_reg(),
+  Tmp2 = hipe_rtl:mk_new_reg(),
+  Tmp3 = hipe_rtl:mk_new_reg(),
+  Tmp4 = hipe_rtl:mk_new_reg(),
+  Tmp5 = hipe_rtl:mk_new_reg(),
+  [hipe_rtl:mk_alu(Tmp1, Src,  'sub', hipe_rtl:mk_imm(?TAG_IMMED1_IFLOAT)),
+   % We want rol instead of the three instructions above ..
+   %hipe_rtl:mk_alu(Tmp2, Tmp1, 'rol', hipe_rtl:mk_imm(?TAG_IMMED1_SIZE + 1)),
+   hipe_rtl:mk_alu(Tmp2, Tmp1, 'srl', hipe_rtl:mk_imm(?TAG_IMMED1_SIZE + 1)),
+   hipe_rtl:mk_alu(Tmp3, Tmp1, 'sll', hipe_rtl:mk_imm(64 - (?TAG_IMMED1_SIZE + 1))),
+   hipe_rtl:mk_alu(Tmp4, Tmp2, 'or', Tmp3),
+
+   % ?IFLOAT_EXP_MIN bsl 52  =  16#3bf0000000000000
+   hipe_rtl:mk_alu(Tmp5, Tmp4, 'add', hipe_rtl:mk_imm(?IFLOAT_EXP_MIN bsl 52)),
+   hipe_rtl_arch:pcb_store(?P_FLOAT_RESULT, Tmp5),
+   hipe_rtl_arch:pcb_fload(Dst, ?P_FLOAT_RESULT)].
+
+unsafe_untag_hfloat(Dst, Src) ->
   Offset = -(?TAG_PRIMARY_BOXED) + hipe_rtl_arch:word_size(),
   [hipe_rtl:mk_fload(Dst, Src, hipe_rtl:mk_imm(Offset))].
 
+test_in_ifloat_range(X, TrueLab, FalseLab, Pred) ->
+  Word = hipe_rtl:mk_new_reg(),
+  [hipe_rtl_arch:pcb_fstore(?P_FLOAT_RESULT, X),
+   hipe_rtl_arch:pcb_load(Word, ?P_FLOAT_RESULT)] ++
+  test_in_ifloat_range_word(Word, TrueLab, FalseLab, Pred).
+
+
+test_in_ifloat_range_word(Word, TrueLab, FalseLab, Pred) ->
+  Lbl = hipe_rtl:mk_new_label(),
+  Tmp2 = hipe_rtl:mk_new_reg(),
+  [hipe_rtl:mk_alu(Tmp2, Word, 'and', hipe_rtl:mk_imm(16#7fffffffffffffff)),
+   % range test of ((fabs(D) >= 5.421010862427523e-20 && fabs(D) <= 1.844674407370955e19)
+   % The range test is done in dword out of convenience
+   hipe_rtl:mk_branch(Tmp2, 'le', hipe_rtl:mk_imm(16#43efffffffffffff),
+                      hipe_rtl:label_name(Lbl),
+                      FalseLab, Pred),
+   Lbl,
+   hipe_rtl:mk_branch(Tmp2, 'ge', hipe_rtl:mk_imm(16#3bf0000000000001),
+                      TrueLab,
+                      FalseLab, Pred)].
+
 unsafe_tag_float(Dst, Src) ->
+  TLabel = hipe_rtl:mk_new_label(),
+  FLabel = hipe_rtl:mk_new_label(),
+  JLabel = hipe_rtl:mk_new_label(),
+  Word   = hipe_rtl:mk_new_reg(),
+  % fabs Src and convert (bitwise) to dword
+  [hipe_rtl_arch:pcb_fstore(?P_FLOAT_RESULT, Src),
+   hipe_rtl_arch:pcb_load(Word, ?P_FLOAT_RESULT)] ++
+  test_in_ifloat_range_word(Word,
+                            hipe_rtl:label_name(TLabel),
+                            hipe_rtl:label_name(FLabel), 0.5) ++
+   [FLabel] ++
+   unsafe_tag_hfloat(Dst,Src) ++
+   [hipe_rtl:mk_goto(hipe_rtl:label_name(JLabel))] ++
+   [TLabel] ++
+   unsafe_tag_ifloat(Dst,Src) ++
+   [JLabel].
+
+unsafe_tag_ifloat(Dst, Src) ->
+  Tmp1 = hipe_rtl:mk_new_reg(),
+  Tmp2 = hipe_rtl:mk_new_reg(),
+  Tmp3 = hipe_rtl:mk_new_reg(),
+  Tmp4 = hipe_rtl:mk_new_reg(),
+  Tmp5 = hipe_rtl:mk_new_reg(),
+  [hipe_rtl_arch:pcb_fstore(?P_FLOAT_RESULT, Src),
+   hipe_rtl_arch:pcb_load(Tmp1, ?P_FLOAT_RESULT),
+   % ?IFLOAT_EXP_MIN bsl 52  =  16#3bf0000000000000
+   hipe_rtl:mk_alu(Tmp2, Tmp1, 'sub', hipe_rtl:mk_imm(?IFLOAT_EXP_MIN bsl 52)),
+   % We want rol instead of the three instructions below ..
+   % hipe_rtl:mk_alu(Tmp3, Tmp2, 'rol', hipe_rtl:mk_imm(?TAG_IMMED1_SIZE + 1)),
+   hipe_rtl:mk_alu(Tmp3, Tmp2, 'sll', hipe_rtl:mk_imm(?TAG_IMMED1_SIZE + 1)),
+   hipe_rtl:mk_alu(Tmp4, Tmp2, 'srl', hipe_rtl:mk_imm(64 - (?TAG_IMMED1_SIZE + 1))),
+   hipe_rtl:mk_alu(Tmp5, Tmp4, 'or', Tmp3),
+
+   hipe_rtl:mk_alu(Dst , Tmp5, 'or', hipe_rtl:mk_imm(?TAG_IMMED1_IFLOAT))].
+
+unsafe_tag_hfloat(Dst, Src) ->
   {GetHPInsn, HP, PutHPInsn} = hipe_rtl_arch:heap_pointer(),
   Head = hipe_rtl:mk_imm(flonum_header()),
   WordSize = hipe_rtl_arch:word_size(),
