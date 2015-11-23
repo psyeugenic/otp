@@ -722,7 +722,11 @@ _ET_DECLARE_CHECKED(struct erl_node_*,internal_pid_node,Eterm)
 #define _PORT_DATA_SHIFT	(_TAG_IMMED2_SIZE)
 
 #define _GET_PORT_NUM(X)	_GETBITS((X), 0, _PORT_NUM_SIZE)
+#if defined(ARCH_64)
 #define _GET_EXT_PORT_NUM(X)	_GETBITS((X), 0, _PORT_EXT_NUM_SIZE)
+#else
+#define _GET_EXT_PORT_NUM(X)	(X)
+#endif
 
 
 #define is_internal_port(x)	(((x) & _TAG_IMMED2_MASK) == _TAG_IMMED2_PORT)

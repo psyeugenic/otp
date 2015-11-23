@@ -308,16 +308,16 @@ ERTS_GLB_INLINE Eterm
 erts_ptab_make_id(ErtsPTab *ptab, Eterm data, Eterm tag)
 {
     Eterm id;
-    data &= ((1 << ERTS_PTAB_ID_DATA_SIZE) - 1);
+    data &= ((1 << ptab->r.o.data_size) - 1);
     id = (Eterm) erts_ptab_data2pixdata(ptab, data);
-    return (id << ERTS_PTAB_ID_DATA_SHIFT) | tag;
+    return (id << ptab->r.o.data_shift) | tag;
 }
 
 ERTS_GLB_INLINE int
 erts_ptab_id2pix(ErtsPTab *ptab, Eterm id)
 {
     Uint pixdata = (Uint) id;
-    pixdata >>= ERTS_PTAB_ID_DATA_SHIFT;
+    pixdata >>= ptab->r.o.data_shift;
     return (int) erts_ptab_pixdata2pix(ptab, pixdata);
 }
 
@@ -325,7 +325,7 @@ ERTS_GLB_INLINE Uint
 erts_ptab_id2data(ErtsPTab *ptab, Eterm id)
 {
     Uint pixdata = (Uint) id;
-    pixdata >>= ERTS_PTAB_ID_DATA_SHIFT;
+    pixdata >>= ptab->r.o.data_shift;
     return erts_ptab_pixdata2data(ptab, pixdata);
 }
 
