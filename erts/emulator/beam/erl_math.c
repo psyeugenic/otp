@@ -37,10 +37,12 @@ math_call_1(Process* p, double (*func)(double), Eterm arg1)
     Eterm res;
 
     ERTS_FP_CHECK_INIT(p);
-    if (is_ifloat(arg1)) {
-        GET_IFLOAT(arg1, a1);
-    } else if (is_hfloat(arg1)) {
+    if (is_hfloat(arg1)) {
         GET_HFLOAT(arg1, a1);
+#ifdef USE_IFLOAT
+    } else if (is_ifloat(arg1)) {
+        GET_IFLOAT(arg1, a1);
+#endif
     } else if (is_small(arg1)) {
 	a1.fd = signed_val(arg1);
     } else if (is_big(arg1)) {
@@ -68,10 +70,12 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
     Eterm res;
 
     ERTS_FP_CHECK_INIT(p);
-    if (is_ifloat(arg1)) {
-        GET_IFLOAT(arg1, a1);
-    } else if (is_hfloat(arg1)) {
+    if (is_hfloat(arg1)) {
 	GET_HFLOAT(arg1, a1);
+#ifdef USE_IFLOAT
+    } else if (is_ifloat(arg1)) {
+        GET_IFLOAT(arg1, a1);
+#endif
     } else if (is_small(arg1)) {
 	a1.fd = signed_val(arg1);
     } else if (is_big(arg1)) {
@@ -85,10 +89,12 @@ math_call_2(Process* p, double (*func)(double, double), Eterm arg1, Eterm arg2)
 	return THE_NON_VALUE;
     }
 
-    if (is_ifloat(arg2)) {
-        GET_IFLOAT(arg2, a2);
-    } else if (is_hfloat(arg2)) {
+    if (is_hfloat(arg2)) {
         GET_HFLOAT(arg2, a2);
+#ifdef USE_IFLOAT
+    } else if (is_ifloat(arg2)) {
+        GET_IFLOAT(arg2, a2);
+#endif
     } else if (is_small(arg2)) {
 	a2.fd = signed_val(arg2);
     } else if (is_big(arg2)) {

@@ -5636,12 +5636,14 @@ driver_deliver_term(Eterm to, ErlDrvTermData* data, int len)
 	    if (!erts_isfinite(f.fd))
 		ERTS_DDT_FAIL;
 
+#ifdef USE_IFLOAT
             if (IS_IFLOAT(f.fd)) {
                 ENC_IFLOAT(f);
 		mess = f.fdw;
-            } else {
+            } else
+#endif
+            {
 		Eterm *fp = erts_produce_heap(&factory, HFLOAT_SIZE_OBJECT, HEAP_EXTRA); 
-
 		mess = make_hfloat(fp);
 		PUT_HFLOAT(f, fp);
 	    }

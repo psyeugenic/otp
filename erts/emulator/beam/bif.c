@@ -3407,11 +3407,14 @@ BIF_RETTYPE string_to_float_1(BIF_ALIST_1)
 	error_res = am_no_float;
 	goto error;
     }
+#ifdef USE_IFLOAT
     if (IS_IFLOAT(f.fd)) {
         ENC_IFLOAT(f);
 	fterm = f.fdw;
 	hp = HAlloc(BIF_P, 3); 
-    } else {
+    } else
+#endif
+    {
 	hp = HAlloc(BIF_P, HFLOAT_SIZE_OBJECT + 3);
 	fterm = make_hfloat(hp);
 	PUT_HFLOAT(f, hp);

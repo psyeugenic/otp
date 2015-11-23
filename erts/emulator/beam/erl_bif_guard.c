@@ -78,6 +78,7 @@ BIF_RETTYPE abs_1(BIF_ALIST_1)
 		*hp++ = *x++;
 	    BIF_RET(res);
 	}
+#ifdef USE_IFLOAT
     } else if (is_ifloat(BIF_ARG_1)) {
 	FloatDef f;
         GET_IFLOAT(BIF_ARG_1, f);
@@ -88,6 +89,7 @@ BIF_RETTYPE abs_1(BIF_ALIST_1)
             BIF_RET(res);
         } else
             BIF_RET(BIF_ARG_1);
+#endif
     } else if (is_hfloat(BIF_ARG_1)) {
 	FloatDef f;
 
@@ -534,6 +536,7 @@ Eterm erts_gc_abs_1(Process* p, Eterm* reg, Uint live)
 		*hp++ = *x++;
 	    return res;
 	}
+#ifdef USE_IFLOAT
     } else if (is_ifloat(arg)) {
 	FloatDef f;
 	GET_IFLOAT(arg, f);
@@ -546,6 +549,7 @@ Eterm erts_gc_abs_1(Process* p, Eterm* reg, Uint live)
 	else {
 	    return arg;
         }
+#endif
     } else if (is_hfloat(arg)) {
 	FloatDef f;
 
@@ -591,10 +595,12 @@ Eterm erts_gc_float_1(Process* p, Eterm* reg, Uint live)
     } else if (big_to_double(arg, &f.fd) < 0) {
 	goto badarg;
     }
+#ifdef USE_IFLOAT
     if (IS_IFLOAT(f.fd)) {
         ENC_IFLOAT(f);
         return f.fdw;
     }
+#endif
     if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {
 	erts_garbage_collect(p, HFLOAT_SIZE_OBJECT, reg, live+1);
 	arg = reg[live];

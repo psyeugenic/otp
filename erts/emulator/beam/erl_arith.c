@@ -344,10 +344,12 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
                 default:
                     goto badarith;
 		}
@@ -371,9 +373,11 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 	    default:
 		goto badarith;
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -391,12 +395,14 @@ erts_mixed_plus(Process* p, Eterm arg1, Eterm arg2)
 		    }
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    goto do_big;
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -448,9 +454,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }
@@ -515,10 +523,12 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
                 default:
                     goto badarith;
 		}
@@ -539,9 +549,11 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 	    default:
 		goto badarith;
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -572,12 +584,14 @@ erts_mixed_minus(Process* p, Eterm arg1, Eterm arg2)
 			return THE_NON_VALUE;
 		    }
 		    return res;
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -616,9 +630,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }
@@ -715,10 +731,12 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 			    return res;
 			}
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
                 default:
                     goto badarith;
 		}
@@ -744,9 +762,11 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 	    default:
 		goto badarith;
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -766,12 +786,14 @@ erts_mixed_times(Process* p, Eterm arg1, Eterm arg2)
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    sz = 2 + big_size(arg1);
 		    goto do_big;
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -830,9 +852,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }
@@ -875,9 +899,11 @@ static int get_float(Eterm term, FloatDef* fp)
 	case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 	    fp->fd = (double) signed_val(term);
 	    return 1;
+#ifdef USE_IFLOAT
 	case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
 	    GET_IFLOAT(term, *fp);
 	    return 1;
+#endif
 	}
 	break;
     case TAG_PRIMARY_BOXED:
@@ -1188,10 +1214,12 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -1215,9 +1243,11 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 	    default:
 		goto badarith;
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -1235,12 +1265,14 @@ erts_gc_mixed_plus(Process* p, Eterm* reg, Uint live)
 		    }
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    goto do_big;
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -1301,9 +1333,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }
@@ -1376,10 +1410,12 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 			res = small_to_big(ires, hp);
 			return res;
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
                 default:
                     goto badarith;
 		}
@@ -1398,9 +1434,11 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 		    goto badarith;
 		}
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -1441,13 +1479,14 @@ erts_gc_mixed_minus(Process* p, Eterm* reg, Uint live)
 			return THE_NON_VALUE;
 		    }
 		    return res;
-
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -1486,9 +1525,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }
@@ -1597,10 +1638,12 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 			    return res;
 			}
 		    }
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     f1.fd = (double) signed_val(arg1);
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
                 default:
                     goto badarith;
 		}
@@ -1626,9 +1669,11 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 	    default:
 		goto badarith;
 	    }
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg1, f1);
             goto arg1_is_float;
+#endif
 	default:
 	    goto badarith;
 	}
@@ -1648,12 +1693,14 @@ erts_gc_mixed_times(Process* p, Eterm* reg, Uint live)
 		    arg2 = small_to_big(signed_val(arg2), tmp_big2);
 		    sz = 2 + big_size(arg1);
 		    goto do_big;
+#ifdef USE_IFLOAT
                 case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
                     if (big_to_double(arg1, &f1.fd) < 0) {
                         goto badarith;
                     }
                     GET_IFLOAT(arg2, f2);
                     goto do_float;
+#endif
 		default:
 		    goto badarith;
 		}
@@ -1722,9 +1769,11 @@ arg1_is_float:
         case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
             f2.fd = signed_val(arg2);
             goto do_float;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE):
             GET_IFLOAT(arg2, f2);
             goto do_float;
+#endif
         default:
             goto badarith;
         }

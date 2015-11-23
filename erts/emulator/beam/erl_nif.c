@@ -864,9 +864,12 @@ int enif_get_uint64(ErlNifEnv* env, ERL_NIF_TERM term, ErlNifUInt64* ip)
 int enif_get_double(ErlNifEnv* env, ERL_NIF_TERM term, double* dp)
 {
     FloatDef f;
+#ifdef USE_IFLOAT
     if (is_ifloat(term)) {
         GET_IFLOAT(term, f);
-    } else if (is_hfloat(term)) {
+    } else
+#endif
+    if (is_hfloat(term)) {
         GET_HFLOAT(term, f);
     } else
         return 0;
@@ -984,10 +987,12 @@ ERL_NIF_TERM enif_make_double(ErlNifEnv* env, double d)
     if (!erts_isfinite(d))
         return enif_make_badarg(env);
     f.fd = d;
+#ifdef USE_IFLOAT
     if (IS_IFLOAT(d)) {
         ENC_IFLOAT(f);
 	return f.fdw;
     }
+#endif
     hp = alloc_heap(env,HFLOAT_SIZE_OBJECT);
     PUT_HFLOAT(f, hp);
     return make_hfloat(hp);

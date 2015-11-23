@@ -432,20 +432,30 @@ _ET_DECLARE_CHECKED(Uint,bignum_header_arity,Eterm)
 _ET_DECLARE_CHECKED(Eterm*,big_val,Wterm)
 #define big_val(x)		_ET_APPLY(big_val,(x))
 
+
+#if defined(ARCH_64) /* and other conditions */
+#define USE_IFLOAT (1)
+#endif
+
 /* float access methods */
 #if defined(ARCH_64)
-#define HEADER_HFLOAT   _make_header(1,_TAG_HEADER_HFLOAT)
+#define HEADER_HFLOAT     _make_header(1,_TAG_HEADER_HFLOAT)
 #else
-#define HEADER_HFLOAT	_make_header(2,_TAG_HEADER_HFLOAT)
+#define HEADER_HFLOAT	  _make_header(2,_TAG_HEADER_HFLOAT)
 #endif
-#define make_hfloat(x)	make_boxed((x))
-#define is_ifloat(x) (((x) & _TAG_IMMED1_MASK) == _TAG_IMMED1_IFLOAT)
-#define is_hfloat(x) (is_boxed((x)) && *boxed_val((x)) == HEADER_HFLOAT)
+#define make_hfloat(x)	  make_boxed((x))
+#ifdef USE_IFLOAT
+#define is_ifloat(x)      (((x) & _TAG_IMMED1_MASK) == _TAG_IMMED1_IFLOAT)
 #define is_float(x)       (is_ifloat(x) || is_hfloat(x))
-#define is_not_float(x)	(!is_float(x))
+#else
+#define is_ifloat(x)      (0)
+#define is_float(x)       is_hfloat(x)
+#endif
+#define is_hfloat(x)      (is_boxed((x)) && *boxed_val((x)) == HEADER_HFLOAT)
+#define is_not_float(x)	  (!is_float(x))
 #define _unchecked_hfloat_val(x)	_unchecked_boxed_val((x))
 _ET_DECLARE_CHECKED(Eterm*,hfloat_val,Wterm)
-#define hfloat_val(x)	_ET_APPLY(hfloat_val,(x))
+#define hfloat_val(x)	 _ET_APPLY(hfloat_val,(x))
 
 /* Float definition for byte and word access */
 typedef double ieee754_8;
@@ -478,6 +488,8 @@ typedef union float_def
 			  *((x)+2) = (f).fw[1]
 #endif
 
+#ifdef USE_IFLOAT
+
 #define ENC_IFLOAT(f) do {                                \
     if (!HAVE_IFLOAT_ZERO || (f).fd != 0.0) {             \
         (f).fdw -= (Uint)IFLOAT_EXP_MIN << 52;            \
@@ -498,13 +510,20 @@ typedef union float_def
 } while(0)
 
 
-#define GET_HFLOAT(x, f)    GET_HFLOAT_DATA(hfloat_val(x), f)
 #define GET_ANY_FLOAT(x, f) \
     if(!is_immed(x)) GET_HFLOAT(x,f); else GET_IFLOAT(x,f)
+#else
+#define GET_ANY_FLOAT(x, f) \
+    GET_HFLOAT(x,f)
+#endif
+#define GET_HFLOAT(x, f)    GET_HFLOAT_DATA(hfloat_val(x), f)
 
 #define HFLOAT_DATA_WORDS (sizeof(ieee754_8)/sizeof(Eterm))
 #define HFLOAT_SIZE_OBJECT (HFLOAT_DATA_WORDS+1)
 
+
+
+#ifdef USE_IFLOAT
 #define BUILD_FLOAT(f, x, res) do {             \
     FloatDef* fdp_ = &(f);                      \
     if (IS_IFLOAT(fdp_->fd)) {                  \
@@ -543,6 +562,33 @@ typedef union float_def
         (p)->htop += HFLOAT_SIZE_OBJECT;                                    \
     }                                                                       \
 }while(0)
+
+#else /* 32bit */
+
+#define BUILD_FLOAT(f, x, res) do {         \
+    FloatDef* fdp_ = &(f);                  \
+    (res) = make_hfloat(x);                 \
+    PUT_HFLOAT(*fdp_, (x));                 \
+    (x) += HFLOAT_SIZE_OBJECT;              \
+} while(0)
+
+#define BUILD_FLOAT_HALLOC(p, f, res) do {      \
+    FloatDef* fdp_ = &(f);                      \
+    Eterm* hp_ = HAlloc(p, HFLOAT_SIZE_OBJECT); \
+    (res) = make_hfloat(hp_);                   \
+    PUT_HFLOAT(*fdp_, hp_);                     \
+}while(0)
+
+#define BUILD_FLOAT_GC(p, reg, live, f, res) do {                       \
+    FloatDef* fdp_ = &(f);                                              \
+    if (ERTS_NEED_GC(p, HFLOAT_SIZE_OBJECT)) {                          \
+        erts_garbage_collect((p), HFLOAT_SIZE_OBJECT, (reg), (live));   \
+    }                                                                   \
+    (res) = make_hfloat((p)->htop);                                     \
+    PUT_HFLOAT(*fdp_, (p)->htop);                                       \
+    (p)->htop += HFLOAT_SIZE_OBJECT;                                    \
+}while(0)
+#endif
 
 
 /* tuple access methods */

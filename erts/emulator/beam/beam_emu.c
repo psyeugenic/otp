@@ -4654,8 +4654,10 @@ do {						\
 	 if (big_to_double(targ1, &fb(fr)) < 0) {
 	     goto fbadarith;
 	 }
+#ifdef USE_IFLOAT
      } else if (is_ifloat(targ1)) {
          GET_IFLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
+#endif
      } else if (is_hfloat(targ1)) {
 	 GET_HFLOAT(targ1, *(FloatDef*)ADD_BYTE_OFFSET(freg, fr));
      } else {

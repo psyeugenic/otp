@@ -1528,9 +1528,11 @@ make_hash2(Eterm term)
 		  SINT32_HASH(x, HCONST);
 		  goto hash2_common;
 	      }
+#ifdef USE_IFLOAT
             case _TAG_IMMED1_IFLOAT:
                 GET_IFLOAT(term, ff);
                 goto hash2_float;
+#endif
 	    }
 	    break;
 	default:
@@ -1917,10 +1919,12 @@ make_internal_hash(Eterm term)
 	}
 	break;
         case TAG_PRIMARY_IMMED1:
+#ifdef USE_IFLOAT
             if (is_ifloat(term)) {
                 GET_IFLOAT(term, ff);
                 goto hash_float;
             }
+#endif
         #if ERTS_SIZEOF_ETERM == 8
             UINT32_HASH_2((Uint32)term, (Uint32)(term >> 32), HCONST);
         #else
@@ -3014,12 +3018,15 @@ Sint erts_cmp(Eterm a, Eterm b, int exact, int eq_only)
         return cmp_atoms(a, b);
     } else if (is_both_small(a, b)) {
         return (signed_val(a) - signed_val(b));
-    } else if (is_ifloat(a) && is_ifloat(b)) {
+    }
+#ifdef USE_IFLOAT
+    else if (is_ifloat(a) && is_ifloat(b)) {
         FloatDef af,bf;
         GET_IFLOAT(a, af);
         GET_IFLOAT(b, bf);
         return float_comp(af.fd, bf.fd);
     }
+#endif
     return erts_cmp_compound(a,b,exact,eq_only);
 }
 
@@ -3140,9 +3147,9 @@ tailrecur_ne:
 	case (_TAG_IMMED1_SMALL >> _TAG_PRIMARY_SIZE):
 	    a_tag = SMALL_DEF;
 	    goto mixed_types;
+#ifdef USE_IFLOAT
         case (_TAG_IMMED1_IFLOAT >> _TAG_PRIMARY_SIZE): {
             FloatDef af, bf;
-
             if (is_ifloat(b)) {
                 GET_IFLOAT(b, bf);
             } else if (is_hfloat(b)) {
@@ -3154,6 +3161,7 @@ tailrecur_ne:
             GET_IFLOAT(a, af);
             ON_CMP_GOTO(float_comp(af.fd, bf.fd));
         }
+#endif
 	case (_TAG_IMMED1_IMMED2 >> _TAG_PRIMARY_SIZE): {
             switch ((a & _TAG_IMMED2_MASK) >> _TAG_IMMED1_SIZE) {
             case (_TAG_IMMED2_PORT >> _TAG_IMMED1_SIZE):
@@ -3326,11 +3334,12 @@ tailrecur_ne:
 		}
             case (_TAG_HEADER_HFLOAT >> _TAG_PRIMARY_SIZE): {
                 FloatDef af, bf;
-
-		if (is_ifloat(b)) {
-                    GET_IFLOAT(b, bf);
-                } else if (is_hfloat(b)) {
+                if (is_hfloat(b)) {
 		    GET_HFLOAT(b, bf);
+#ifdef USE_IFLOAT
+                } else if (is_ifloat(b)) {
+                    GET_IFLOAT(b, bf);
+#endif
                 } else {
 		    a_tag = FLOAT_DEF;
 		    goto mixed_types;
