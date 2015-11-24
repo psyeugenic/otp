@@ -355,18 +355,24 @@ arith(_Config) ->
     BIG1_MAX = (1 bsl WORD_BITS) - 1,
     BIG2_MAX = (1 bsl (WORD_BITS*2)) - 1,
 
-    ifloat = erts_internal:term_type(IFLOAT_MIN),
-    ifloat = erts_internal:term_type(IFLOAT_MAX),
-    ifloat = erts_internal:term_type(-IFLOAT_MIN),
-    ifloat = erts_internal:term_type(-IFLOAT_MAX),
+    {Ftype,Itype} = case erlang:system_info(wordsize) of
+                        4 -> {hfloat,bignum};
+                        8 -> {ifloat,fixnum}
+                    end,
+    Ftype  = erts_internal:term_type(IFLOAT_MIN),
+    Ftype  = erts_internal:term_type(IFLOAT_MAX),
+    Ftype  = erts_internal:term_type(-IFLOAT_MIN),
+    Ftype  = erts_internal:term_type(-IFLOAT_MAX),
+    Ftype  = erts_internal:term_type(3.1415),
+    Ftype  = erts_internal:term_type(-3.1415),
     hfloat = erts_internal:term_type(0.0),
     hfloat = erts_internal:term_type(FloatNegZero),
     hfloat = erts_internal:term_type(HFLOAT_HUGE_MIN),
     hfloat = erts_internal:term_type(HFLOAT_HUGE_MAX),
     hfloat = erts_internal:term_type(HFLOAT_TINY_MIN),
     hfloat = erts_internal:term_type(HFLOAT_TINY_MAX),
-    fixnum = erts_internal:term_type(SMALL_MIN),
-    fixnum = erts_internal:term_type(SMALL_MAX),
+    Itype  = erts_internal:term_type(SMALL_MIN),
+    Itype  = erts_internal:term_type(SMALL_MAX),
     bignum = erts_internal:term_type(SMALL_MIN-1),
     bignum = erts_internal:term_type(SMALL_MAX+1),
 
