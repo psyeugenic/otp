@@ -3834,6 +3834,7 @@ static Eterm table_info(Process* p, DbTable* tb, Eterm What)
 			 make_small(stats.min_chain_len),
 			 make_small(stats.max_chain_len),
 			 make_small(stats.kept_items));
+            hp += 8; /* tuple hdr + 7 */
             HRelease(p, hp_end, hp);
 	}
 	else {
