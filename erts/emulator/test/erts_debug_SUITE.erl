@@ -140,6 +140,10 @@ flat_size_big_1(_, _, _) -> ok.
 
 
 term_type(Config) when is_list(Config) ->
+    Ftype = case erlang:system_info(wordsize) of
+                8 -> ifloat;
+                4 -> hfloat
+            end,
     Ts = [{fixnum, 1},
           {fixnum, -1},
           {bignum, 1 bsl 300},
@@ -150,10 +154,10 @@ term_type(Config) when is_list(Config) ->
           {hfloat, 1.0*(1 bsl 302)},
           {hfloat, -1.0/(1 bsl 302)},
           {hfloat, -1.0*(1 bsl 302)},
-          {ifloat, 3.1416},
-          {ifloat, 1.0e18},
-          {ifloat, -3.1416},
-          {ifloat, -1.0e18},
+          {Ftype, 3.1416},
+          {Ftype, 1.0e18},
+          {Ftype, -3.1416},
+          {Ftype, -1.0e18},
 
           {heap_binary, <<1,2,3>>},
           {refc_binary, <<0:(8*80)>>},
@@ -171,8 +175,10 @@ term_type(Config) when is_list(Config) ->
           {'fun', fun() -> ok end},
           {pid, self()},
           {atom, atom}],
-    lists:foreach(fun({T,Val}) ->
-                          T = erts_internal:term_type(Val)
+    lists:foreach(fun({E,Val}) ->
+                          R = erts_internal:term_type(Val),
+                          io:format("expecting term type ~w, got ~w (~p)~n", [E,R,Val]),
+                          E = R
                   end, Ts),
     ok.
 
