@@ -184,11 +184,13 @@
     allowed, and may map to any value, the shorhand notation <c>...</c> is
     allowed as the last pair of a map type.
   </p>
-  <p>
-    Notice that the syntactic representation of <c>map()</c> is <c>#{...}</c>
-    (or <c>#{_ =&gt; _}</c>, or <c>#{any() =&gt; any()}</c>), not <c>#{}</c>.
-    The notation <c>#{}</c> specifies the singleton type for the empty map.
-  </p>
+  <note>
+    <p>
+      Notice that the syntactic representation of <c>map()</c> is
+      <c>#{...}</c>, not <c>#{}</c>. The notation <c>#{}</c> specifies
+      the singleton type for the empty map.
+    </p>
+  </note>
   <p>
     For convenience, the following types are also built-in. 
     They can be thought as predefined aliases for the type unions also shown in 
