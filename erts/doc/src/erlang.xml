@@ -5800,7 +5800,7 @@ true</pre>
               selected for execution for the first time. For more
               information on priorities, see
               <seealso marker="#process_flag_priority">
-              <c>process_flag(priority, <anno>Level</anno>)</seealso>.</p>
+                  <c>process_flag(priority, <anno>Level</anno>)</c></seealso>.</p>
           </item>
           <tag><c>{fullsweep_after, <anno>Number</anno>}</c></tag>
           <item>

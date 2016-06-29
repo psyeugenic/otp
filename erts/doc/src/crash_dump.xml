@@ -126,7 +126,7 @@ Slogan: &lt;reason&gt;</pre>
           <p>Same as above except that memory was reallocated
             instead of allocated when the system ran out of memory.</p>
         </item>
-        <tag><em>Unexpected op code &l;N&gt;</em></tag>
+        <tag><em>Unexpected op code &lt;N&gt;</em></tag>
         <item>
           <p>Error in compiled code, <c><![CDATA[beam]]></c> file damaged, or
             error in the compiler.</p>
