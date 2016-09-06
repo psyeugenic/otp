@@ -151,6 +151,7 @@ include_attribute(optional_callbacks) -> false;
 include_attribute(_) -> true.
 
 function({#c_var{name={F,Arity}=FA},Body}, St0) ->
+    %%io:format("~w/~w~n", [F,Arity]),
     try
 	St1 = St0#kern{func=FA,ff=undefined,vcount=0,fcount=0,ds=cerl_sets:new()},
 	{#ifun{anno=Ab,vars=Kvs,body=B0},[],St2} = expr(Body, new_sub(), St1),
@@ -1351,9 +1352,73 @@ select(T, Cs) -> [ C || C <- Cs, clause_con(C) =:= T ].
 %%  now separate them according to value.
 
 match_value(Us0, T, Cs0, Def, St0) ->
-    UCss = group_value(T, Us0, Cs0),
+    {Us1,Cs1,St1} = partition_intersection(T, Us0, Cs0, St0),
+    UCss = group_value(T, Us1, Cs1),
     %%ok = io:format("match_value ~p ~p~n", [T, Css]),
-    mapfoldl(fun ({Us,Cs}, St) -> match_clause(Us, Cs, Def, St) end, St0, UCss).
+    mapfoldl(fun ({Us,Cs}, St) -> match_clause(Us, Cs, Def, St) end, St1, UCss).
+
+%% partition_intersection
+%%  Partitions a map into two maps with the most common keys to the first map.
+%%      case <M> of
+%%          #{a}
+%%          #{a,b}
+%%          #{a,c}
+%%          #{c}
+%%      end
+%%  becomes
+%%      case <M,M> of
+%%          #{a},  #{ }
+%%          #{a},  #{b}
+%%          #{ },  #{c}
+%%          #{a},  #{c}
+%%      end
+%% The intention is to group as many keys together as possible and thus
+%% reduce the number of lookups to that key.
+partition_intersection(k_map, [U|_]=Us0, [_,_|_]=Cs0,St0) ->
+    Ps = [clause_val(C) || C <- Cs0],
+    case find_common_keys(Ps) of
+        [] ->
+            {Us0,Cs0,St0};
+        Ks ->
+            {Cs1,St1} = mapfoldl(fun(#iclause{pats=[Arg|Args]}=C, Sti) ->
+                                         {{Arg1,Arg2},St} = partition_key_intersection(Arg, Ks, Sti),
+                                         {C#iclause{pats=[Arg1,Arg2|Args]}, St}
+                                 end, St0, Cs0),
+            {[U|Us0],Cs1,St1}
+    end;
+partition_intersection(_, Us, Cs, St) ->
+    {Us,Cs,St}.
+
+partition_key_intersection(#k_map{es=Pairs}=Map,Ks,St0) ->
+    F = fun(#k_map_pair{key=Key}) -> member(map_key_clean(Key), Ks) end,
+    {Ps1,Ps2} = partition(F, Pairs),
+    {{Map#k_map{es=Ps1},Map#k_map{es=Ps2}},St0};
+partition_key_intersection(#ialias{pat=Map}=Alias,Ks,St0) ->
+    %% only alias one of them
+    {{Map1,Map2},St1} = partition_key_intersection(Map, Ks, St0),
+    {{Map1,Alias#ialias{pat=Map2}},St1}.
+
+% find the most common key(s) in all sets of keys
+find_common_keys(Ps) ->
+    {Fs,_} = flatmapfoldl(fun(Ks,I) -> {[{K,I}||K<-Ks],I+1} end, 1, Ps),
+    F1 = sofs:relation_to_family(sofs:relation(Fs)),
+    F2 = sofs:relation_to_family(sofs:converse(F1)),
+    Rs = [{Ks,score_common_keys(S)} || {S,Ks} <- sofs:to_external(F2)],
+    {Ks,_} = foldl(fun ({_,Dg}=S, {_,Hig}) when Dg > Hig -> S;
+                       (_, S) -> S
+                   end, {[],1}, Rs),
+    Ks.
+
+score_common_keys([]) -> 0;
+score_common_keys([_]) -> 0;
+score_common_keys(S) -> score_common_keys(S, 1, 1).
+score_common_keys([I1|[I2|_]=Is], Dg, Cg) ->
+    if I1 + 1 =:= I2 -> score_common_keys(Is, Dg, Cg+1);
+       Cg > Dg       -> score_common_keys(Is, Cg, 1);
+       true          -> score_common_keys(Is, Dg, 1)
+    end;
+score_common_keys(_, Dg, Cg) when Cg > Dg -> Cg;
+score_common_keys(_, Dg, _) -> Dg.
 
 %% group_value([Clause]) -> [[Clause]].
 %%  Group clauses according to value.  Here we know that
