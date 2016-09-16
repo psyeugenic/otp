@@ -2029,3 +2029,9 @@ add_warning(Line, Term, Anno, #kern{ws=Ws}=St) ->
 is_compiler_generated(Ke) ->
     Anno = get_kanno(Ke),
     member(compiler_generated, Anno).
+
+flatmapfoldl(F, Accu0, [Hd|Tail]) ->
+    {R,Accu1} = F(Hd, Accu0),
+    {Rs,Accu2} = flatmapfoldl(F, Accu1, Tail),
+    {R++Rs,Accu2};
+flatmapfoldl(_, Accu, []) -> {[],Accu}.
