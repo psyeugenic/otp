@@ -747,6 +747,37 @@ do {                                            \
     dst[2] = E3;					\
   } while (0)
 
+#define GetTupleElementWindow2(Src, Ix1, Ix2, Dst)      \
+  do {                                                  \
+    Eterm* src1, *src2;                                 \
+    Eterm *dst;                                         \
+    Eterm E1, E2;                                       \
+    src1 = ADD_BYTE_OFFSET(tuple_val(Src), (Ix1));      \
+    src2 = ADD_BYTE_OFFSET(tuple_val(Src), (Ix2));      \
+    dst = &(Dst);                                       \
+    E1 = *src1;                                         \
+    E2 = *src2;                                         \
+    dst[0] = E1;                                        \
+    dst[1] = E2;                                        \
+  } while (0)
+
+#define GetTupleElementWindow3(Src, Ix1, Ix2, Ix3, Dst)	\
+  do {                                                  \
+    Eterm *src1, *src2, *src3;                          \
+    Eterm *dst;                                         \
+    Eterm E1, E2, E3;                                   \
+    src1 = ADD_BYTE_OFFSET(tuple_val(Src), (Ix1));      \
+    src2 = ADD_BYTE_OFFSET(tuple_val(Src), (Ix2));      \
+    src3 = ADD_BYTE_OFFSET(tuple_val(Src), (Ix3));      \
+    dst = &(Dst);                                       \
+    E1 = *src1;                                         \
+    E2 = *src2;                                         \
+    E3 = *src3;                                         \
+    dst[0] = E1;                                        \
+    dst[1] = E2;                                        \
+    dst[2] = E3;                                        \
+  } while (0)
+
 #define EqualImmed(X, Y, Action) if (X != Y) { Action; }
 #define NotEqualImmed(X, Y, Action) if (X == Y) { Action; }
 #define EqualExact(X, Y, Action) if (!EQ(X,Y)) { Action; }
