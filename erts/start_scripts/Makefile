@@ -30,15 +30,17 @@ include $(ERL_TOP)/make/$(TARGET)/otp.mk
 SS_ROOT = $(ERL_TOP)/erts/start_scripts
 SS_TMP = $(SS_ROOT)/tmp
 LIBPATH= $(ERL_TOP)/lib
-SCRIPT_PATH = -I$(LIBPATH)/kernel/ebin -I$(LIBPATH)/stdlib/ebin -I$(LIBPATH)/sasl/ebin
+SCRIPT_PATH = -I$(LIBPATH)/kernel/ebin -I$(LIBPATH)/stdlib/ebin -I$(LIBPATH)/sasl/ebin -I$(LIBPATH)/compiler/ebin
 BOOTSTRAP_LIBPATH=$(BOOTSTRAP_TOP)/lib
-BOOTSTRAP_SCRIPT_PATH = -I$(BOOTSTRAP_LIBPATH)/kernel/ebin -I$(BOOTSTRAP_LIBPATH)/stdlib/ebin
+BOOTSTRAP_SCRIPT_PATH = -I$(BOOTSTRAP_LIBPATH)/kernel/ebin -I$(BOOTSTRAP_LIBPATH)/stdlib/ebin -I$(BOOTSTRAP_LIBPATH)/compiler/ebin
 
 INSTALL_SCRIPTS = \
 	$(SS_ROOT)/start_clean.script \
 	$(SS_ROOT)/start_clean.boot \
 	$(SS_ROOT)/start_sasl.boot \
 	$(SS_ROOT)/start_sasl.script \
+	$(SS_ROOT)/load_compiler.boot \
+	$(SS_ROOT)/load_compiler.script \
 	$(SS_ROOT)/no_dot_erlang.boot \
 	$(SS_ROOT)/no_dot_erlang.script
 
@@ -47,6 +49,7 @@ REL_SCRIPTS = \
 	$(SS_ROOT)/start_clean.rel \
 	$(SS_ROOT)/start_sasl.rel \
 	$(SS_ROOT)/start_all_example.rel \
+	$(SS_ROOT)/load_compiler.rel \
 	$(SS_ROOT)/no_dot_erlang.rel \
 
 ifneq ($(findstring win32,$(TARGET)),win32)
@@ -61,6 +64,7 @@ include ../vsn.mk
 include $(LIBPATH)/kernel/vsn.mk
 include $(LIBPATH)/stdlib/vsn.mk
 -include $(LIBPATH)/sasl/vsn.mk
+-include $(LIBPATH)/compiler/vsn.mk
 -include $(LIBPATH)/os_mon/vsn.mk
 -include $(LIBPATH)/mnesia/vsn.mk
 -include $(LIBPATH)/snmp/vsn.mk
@@ -90,6 +94,12 @@ $(SS_ROOT)/start_sasl.boot:	$(SS_ROOT)/start_sasl.rel
 	$(V_at)( cd $(SS_TMP) && \
 	$(ERLC) $(SASL_FLAGS) $(SCRIPT_PATH) -o $(SS_ROOT) $< )
 
+$(SS_ROOT)/load_compiler.script \
+$(SS_ROOT)/load_compiler.boot: $(SS_ROOT)/load_compiler.rel
+	$(gen_verbose)$(INSTALL_DIR) $(SS_TMP)
+	$(V_at)( cd $(SS_TMP) && \
+	$(ERLC) $(SASL_FLAGS) $(SCRIPT_PATH) +no_warn_sasl -o $(SS_ROOT) $< )
+
 $(SS_ROOT)/no_dot_erlang.script \
 $(SS_ROOT)/no_dot_erlang.boot:	$(SS_ROOT)/no_dot_erlang.rel
 	$(gen_verbose)$(INSTALL_DIR) $(SS_TMP)
@@ -118,6 +128,18 @@ $(SS_ROOT)/start_sasl.rel:	$(SS_ROOT)/start_sasl.rel.src \
             -e 's;%STDLIB_VSN%;$(STDLIB_VSN);' \
             -e 's;%SASL_VSN%;$(SASL_VSN);' \
           $(SS_ROOT)/start_sasl.rel.src > $(SS_ROOT)/start_sasl.rel
+
+$(SS_ROOT)/load_compiler.rel: $(SS_ROOT)/load_compiler.rel.src \
+			../vsn.mk \
+			$(LIBPATH)/kernel/vsn.mk \
+			$(LIBPATH)/stdlib/vsn.mk \
+			$(LIBPATH)/compiler/vsn.mk
+	$(gen_verbose)sed -e 's;%SYS_VSN%;$(SYSTEM_VSN);' \
+            -e 's;%ERTS_VSN%;$(VSN);' \
+            -e 's;%KERNEL_VSN%;$(KERNEL_VSN);' \
+            -e 's;%STDLIB_VSN%;$(STDLIB_VSN);' \
+            -e 's;%COMPILER_VSN%;$(COMPILER_VSN);' \
+          $(SS_ROOT)/load_compiler.rel.src > $(SS_ROOT)/load_compiler.rel
 
 $(SS_ROOT)/no_dot_erlang.rel: $(SS_ROOT)/no_dot_erlang.rel.src \
 			../vsn.mk \

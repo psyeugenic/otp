@@ -7,7 +7,9 @@
 /start_scripts/RELEASES.src
 /start_scripts/*.rel
 /start_scripts/*.boot
-/start_scripts/*.script
+/start_scripts/no_dot_erlang.script
+/start_scripts/start_clean.script
+/start_scripts/start_sasl.script
 
 /etc/common/Install
 /etc/common/erl.src
