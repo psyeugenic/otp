@@ -749,26 +749,14 @@ static RETSIGTYPE do_quit(int signum)
 
 static void sighup_requested(void) {
     Process* p = NULL;
-    Eterm id;
-    ErtsProcLocks locks = 0;
-    int is_scheduler;
 
-    id = erts_whereis_name_to_id(NULL, am_erl_signal_server);
-    is_scheduler = erts_get_scheduler_id() > 0;
-    if ((p = (is_scheduler ? erts_proc_lookup(id)
-                           : erts_pid2proc_opt(NULL,
-                                               0,
-                                               id,
-                                               0,
-                                               ERTS_P2P_FLG_INC_REFC))) != NULL) {
+    Eterm id = erts_whereis_name_to_id(NULL, am_erl_signal_server);
+    if ((p = erts_pid2proc_opt(NULL, 0, id, 0, ERTS_P2P_FLG_INC_REFC)) != NULL) {
         ErtsMessage *msgp = erts_alloc_message(0, NULL);
-        erts_queue_message(p, locks, msgp, am_sighup, am_system);
+        erts_queue_message(p, 0, msgp, am_sighup, am_system);
 
 #ifdef ERTS_SMP
-        if (locks)
-            erts_smp_proc_unlock(p, locks);
-        if (!is_scheduler)
-            erts_proc_dec_refc(p);
+        erts_proc_dec_refc(p);
 #endif
     }
 }
