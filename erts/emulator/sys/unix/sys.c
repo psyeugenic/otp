@@ -657,32 +657,22 @@ static RETSIGTYPE request_break(int signum)
 
 static void stop_requested(void) {
     Process* p = NULL;
-    Eterm id, msg, *hp;
+    Eterm msg, *hp;
     ErtsProcLocks locks = 0;
     ErlOffHeap *ohp;
-    ErtsMessage *msgp;
-    int is_scheduler;
+    Eterm id = erts_whereis_name_to_id(NULL, am_init);
 
-    id = erts_whereis_name_to_id(NULL, am_init);
-    is_scheduler = erts_get_scheduler_id() > 0;
-    if ((p = (is_scheduler ? erts_proc_lookup(id)
-                           : erts_pid2proc_opt(NULL,
-                                               0,
-                                               id,
-                                               0,
-                                               ERTS_P2P_FLG_INC_REFC))) != NULL) {
+    if ((p = (erts_pid2proc_opt(NULL, 0, id, 0, ERTS_P2P_FLG_INC_REFC))) != NULL) {
+        ErtsMessage *msgp = erts_alloc_message_heap(p, &locks, 3, &hp, &ohp);
 
-
-        msgp = erts_alloc_message_heap(p, &locks, 3, &hp, &ohp);
+        /* init ! {stop,stop} */
         msg = TUPLE2(hp, am_stop, am_stop);
-
         erts_queue_message(p, locks, msgp, msg, am_system);
 
 #ifdef ERTS_SMP
         if (locks)
             erts_smp_proc_unlock(p, locks);
-        if (!is_scheduler)
-            erts_proc_dec_refc(p);
+        erts_proc_dec_refc(p);
 #endif
     }
 }
