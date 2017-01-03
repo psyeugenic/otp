@@ -1522,9 +1522,10 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
     Uint size_before, size_after, stack_size;
     Eterm* n_heap;
     Eterm* n_htop;
+    Eterm *n_ohtop, *n_oheap;
     char* oh = (char *) OLD_HEAP(p);
     Uint oh_size = (char *) OLD_HTOP(p) - oh;
-    Uint new_sz, stk_sz;
+    Uint new_old_sz, new_young_sz, stk_sz;
     int adjusted;
 
     VERBOSE(DEBUG_SHCOPY, ("[pid=%T] MAJOR GC: %p %p %p %p\n", p->common.id,
@@ -1539,17 +1540,12 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
     size_before += p->old_htop - p->old_heap;
     stack_size = p->hend - p->stop;
 
-    new_sz = stack_size + size_before;
-    new_sz = next_heap_size(p, new_sz, 0);
+    /* should remove mbuf sizes from new_old_sz */
+    new_old_sz = size_before;
+    new_old_sz = next_heap_size(p, new_old_sz, 0);
 
-    /*
-     * Should we grow although we don't actually need to?
-     */
-
-    if (new_sz == HEAP_SIZE(p) && FLAGS(p) & F_HEAP_GROW) {
-        new_sz = next_heap_size(p, HEAP_SIZE(p), 1);
-    }
-
+    new_young_sz = stack_size + young_gen_usage(p);
+    new_young_sz = next_heap_size(p, new_young_sz, 1);
 
     if (MAX_HEAP_SIZE_GET(p)) {
         Uint heap_size = size_before;
@@ -1560,33 +1556,33 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
         /* Add stack + unused space in young heap */
         heap_size += HEAP_END(p) - HEAP_TOP(p);
 
-        /* Add size of new young heap */
-        heap_size += new_sz;
+        /* Add size of new young and old heap */
+        heap_size += new_old_sz + new_young_sz;
 
         if (MAX_HEAP_SIZE_GET(p) < heap_size)
-            if (reached_max_heap_size(p, heap_size, new_sz, 0))
+            if (reached_max_heap_size(p, heap_size, new_young_sz, new_old_sz))
                 return -2;
     }
 
     FLAGS(p) &= ~(F_HEAP_GROW|F_NEED_FULLSWEEP);
-    n_htop = n_heap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP,
-						sizeof(Eterm)*new_sz);
+    n_htop = n_heap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP, sizeof(Eterm)*new_young_sz);
+    n_ohtop = n_oheap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_OLD_HEAP, sizeof(Eterm)*new_old_sz);
 
     if (live_hf_end != ERTS_INVALID_HFRAG_PTR) {
 	/*
 	 * Move heap frags that we know are completely live
 	 * directly into the heap.
 	 */
-	n_htop = collect_live_heap_frags(p, live_hf_end, n_heap, n_htop,
-					 objv, nobj);
+
+	n_ohtop = collect_live_heap_frags(p, live_hf_end, n_oheap, n_ohtop, objv, nobj);
     }
 
-    n_htop = full_sweep_heaps(p, 0, n_heap, n_htop, oh, oh_size, objv, nobj);
+    n_ohtop = full_sweep_heaps(p, 0, n_oheap, n_ohtop, oh, oh_size, objv, nobj);
 
     /* Move the stack to the end of the heap */
     stk_sz = HEAP_END(p) - p->stop;
-    sys_memcpy(n_heap + new_sz - stk_sz, p->stop, stk_sz * sizeof(Eterm));
-    p->stop = n_heap + new_sz - stk_sz;
+    sys_memcpy(n_heap + new_young_sz - stk_sz, p->stop, stk_sz * sizeof(Eterm));
+    p->stop = n_heap + new_young_sz - stk_sz;
 
 #ifdef USE_VM_PROBES
     if (HEAP_SIZE(p) != new_sz && DTRACE_ENABLED(process_heap_grow)) {
@@ -1606,8 +1602,12 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
     p->flags &= ~F_ABANDONED_HEAP_USE;
     HEAP_START(p) = n_heap;
     HEAP_TOP(p) = n_htop;
-    HEAP_SIZE(p) = new_sz;
-    HEAP_END(p) = n_heap + new_sz;
+    HEAP_SIZE(p) = new_young_sz;
+    HEAP_END(p) = n_heap + new_young_sz;
+    OLD_HEAP(p) = n_oheap;
+    OLD_HTOP(p) = n_ohtop;
+    OLD_HEND(p) = n_oheap + new_old_sz;
+
     GEN_GCS(p) = 0;
 
     HIGH_WATER(p) = HEAP_TOP(p);
@@ -1797,9 +1797,9 @@ static void
 disallow_heap_frag_ref_in_heap(Process* p)
 {
     Eterm* hp;
-    Eterm* htop;
-    Eterm* heap;
-    Uint heap_size;
+    Eterm *htop, *heap;
+    Eterm *ohtop, *oheap;
+    Uint young_size, old_size;
 
     if (p->mbuf == 0) {
 	return;
@@ -1807,7 +1807,11 @@ disallow_heap_frag_ref_in_heap(Process* p)
 
     htop = p->htop;
     heap = p->heap;
-    heap_size = (htop - heap)*sizeof(Eterm);
+    young_size = (htop - heap)*sizeof(Eterm);
+
+    oheap = p->old_heap;
+    ohtop = p->old_htop;
+    old_size = (ohtop - oheap)*sizeof(Eterm);
 
     hp = heap;
     while (hp < htop) {
@@ -1819,7 +1823,7 @@ disallow_heap_frag_ref_in_heap(Process* p)
 	switch (primary_tag(val)) {
 	case TAG_PRIMARY_BOXED:
 	    ptr = _unchecked_boxed_val(val);
-	    if (!ErtsInArea(ptr, heap, heap_size)) {
+	    if (!(ErtsInArea(ptr, heap, young_size) || ErtsInArea(ptr, oheap, old_size))) {
 		for (qb = MBUF(p); qb != NULL; qb = qb->next) {
 		    if (ErtsInArea(ptr, qb->mem, qb->alloc_size*sizeof(Eterm))) {
 			abort();
@@ -1829,7 +1833,7 @@ disallow_heap_frag_ref_in_heap(Process* p)
 	    break;
 	case TAG_PRIMARY_LIST:
 	    ptr = _unchecked_list_val(val);
-	    if (!ErtsInArea(ptr, heap, heap_size)) {
+	    if (!(ErtsInArea(ptr, heap, young_size) || ErtsInArea(ptr, oheap, old_size))) {
 		for (qb = MBUF(p); qb != NULL; qb = qb->next) {
 		    if (ErtsInArea(ptr, qb->mem, qb->alloc_size*sizeof(Eterm))) {
 			abort();
