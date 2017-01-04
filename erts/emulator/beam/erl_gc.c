@@ -117,9 +117,9 @@ static Eterm *full_sweep_heaps(Process *p,
 			       char *oh, Uint oh_size,
 			       Eterm *objv, int nobj);
 static int garbage_collect(Process* p, ErlHeapFragment *live_hf_end,
-			   int need, Eterm* objv, int nobj, int fcalls);
+			   int need, Eterm* objv, int nobj, int no_old_heap, int fcalls);
 static int major_collection(Process* p, ErlHeapFragment *live_hf_end,
-			    int need, Eterm* objv, int nobj, Uint *recl);
+			    int need, Eterm* objv, int nobj, int no_old_heap, Uint *recl);
 static int minor_collection(Process* p, ErlHeapFragment *live_hf_end,
 			    int need, Eterm* objv, int nobj, Uint *recl);
 static void do_minor(Process *p, ErlHeapFragment *live_hf_end,
@@ -399,15 +399,15 @@ erts_gc_after_bif_call_lhf(Process* p, ErlHeapFragment *live_hf_end,
 		regs = erts_proc_sched_data(p)->x_reg_array;
 	    }
 #endif
-	    cost = garbage_collect(p, live_hf_end, 0, regs, p->arity, p->fcalls);
+	    cost = garbage_collect(p, live_hf_end, 0, regs, p->arity, 0, p->fcalls);
 	} else {
-	    cost = garbage_collect(p, live_hf_end, 0, regs, arity, p->fcalls);
+	    cost = garbage_collect(p, live_hf_end, 0, regs, arity, 0, p->fcalls);
 	}
     } else {
 	Eterm val[1];
 
 	val[0] = result;
-	cost = garbage_collect(p, live_hf_end, 0, val, 1, p->fcalls);
+	cost = garbage_collect(p, live_hf_end, 0, val, 1, 0, p->fcalls);
 	result = val[0];
     }
     BUMP_REDS(p, cost);
@@ -596,7 +596,7 @@ young_gen_usage(Process *p)
  */
 static int
 garbage_collect(Process* p, ErlHeapFragment *live_hf_end,
-		int need, Eterm* objv, int nobj, int fcalls)
+		int need, Eterm* objv, int nobj, int no_old_heap, int fcalls)
 {
     Uint reclaimed_now = 0;
     Eterm gc_trace_end_tag;
@@ -670,7 +670,7 @@ do_major_collection:
             trace_gc(p, am_gc_major_start, need, THE_NON_VALUE);
         }
         DTRACE2(gc_major_start, pidbuf, need);
-        reds = major_collection(p, live_hf_end, need, objv, nobj, &reclaimed_now);
+        reds = major_collection(p, live_hf_end, need, objv, nobj, no_old_heap, &reclaimed_now);
         DTRACE2(gc_major_end, pidbuf, reclaimed_now);
         gc_trace_end_tag = am_gc_major_end;
         ERTS_MSACC_SET_STATE_CACHED_M_X(ERTS_MSACC_STATE_GC);
@@ -769,9 +769,9 @@ do_major_collection:
 }
 
 int
-erts_garbage_collect_nobump(Process* p, int need, Eterm* objv, int nobj, int fcalls)
+erts_garbage_collect_nobump_opt(Process* p, int need, Eterm* objv, int nobj, int discard_heap, int fcalls)
 {
-    int reds = garbage_collect(p, ERTS_INVALID_HFRAG_PTR, need, objv, nobj, fcalls);
+    int reds = garbage_collect(p, ERTS_INVALID_HFRAG_PTR, need, objv, nobj, discard_heap, fcalls);
     int reds_left = ERTS_REDS_LEFT(p, fcalls);
     if (reds > reds_left)
 	reds = reds_left;
@@ -782,7 +782,7 @@ erts_garbage_collect_nobump(Process* p, int need, Eterm* objv, int nobj, int fca
 void
 erts_garbage_collect(Process* p, int need, Eterm* objv, int nobj)
 {
-    int reds = garbage_collect(p, ERTS_INVALID_HFRAG_PTR, need, objv, nobj, p->fcalls);
+    int reds = garbage_collect(p, ERTS_INVALID_HFRAG_PTR, need, objv, nobj, 0, p->fcalls);
     BUMP_REDS(p, reds);
     ASSERT(CONTEXT_REDS - ERTS_BIF_REDS_LEFT(p)
 	   >= erts_proc_sched_data(p)->virtual_reds);
@@ -1517,7 +1517,7 @@ do_minor(Process *p, ErlHeapFragment *live_hf_end,
 
 static int
 major_collection(Process* p, ErlHeapFragment *live_hf_end,
-		 int need, Eterm* objv, int nobj, Uint *recl)
+		 int need, Eterm* objv, int nobj, int no_old_heap, Uint *recl)
 {
     Uint size_before, size_after, stack_size;
     Eterm* n_heap;
@@ -1547,6 +1547,11 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
     new_young_sz = stack_size + young_gen_usage(p);
     new_young_sz = next_heap_size(p, new_young_sz, 1);
 
+    if (no_old_heap) {
+        new_young_sz += new_old_sz;
+        new_old_sz = 0;
+    }
+
     if (MAX_HEAP_SIZE_GET(p)) {
         Uint heap_size = size_before;
 
@@ -1565,15 +1570,19 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
     }
 
     FLAGS(p) &= ~(F_HEAP_GROW|F_NEED_FULLSWEEP);
-    n_htop = n_heap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP, sizeof(Eterm)*new_young_sz);
-    n_ohtop = n_oheap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_OLD_HEAP, sizeof(Eterm)*new_old_sz);
+    n_htop = n_heap = n_ohtop = n_oheap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_HEAP,
+                                                                    sizeof(Eterm)*new_young_sz);
+
+    if (!no_old_heap) {
+        n_ohtop = n_oheap = (Eterm *) ERTS_HEAP_ALLOC(ERTS_ALC_T_OLD_HEAP,
+                                                      sizeof(Eterm)*new_old_sz);
+    }
 
     if (live_hf_end != ERTS_INVALID_HFRAG_PTR) {
 	/*
 	 * Move heap frags that we know are completely live
 	 * directly into the heap.
 	 */
-
 	n_ohtop = collect_live_heap_frags(p, live_hf_end, n_oheap, n_ohtop, objv, nobj);
     }
 
@@ -1594,19 +1603,25 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
 #endif
 
     ERTS_HEAP_FREE(ERTS_ALC_T_HEAP,
-		   (p->abandoned_heap
-		    ? p->abandoned_heap
-		    : HEAP_START(p)),
+		   (p->abandoned_heap ? p->abandoned_heap : HEAP_START(p)),
 		   p->heap_sz * sizeof(Eterm));
     p->abandoned_heap = NULL;
     p->flags &= ~F_ABANDONED_HEAP_USE;
-    HEAP_START(p) = n_heap;
-    HEAP_TOP(p) = n_htop;
-    HEAP_SIZE(p) = new_young_sz;
-    HEAP_END(p) = n_heap + new_young_sz;
-    OLD_HEAP(p) = n_oheap;
-    OLD_HTOP(p) = n_ohtop;
-    OLD_HEND(p) = n_oheap + new_old_sz;
+    if (!no_old_heap) {
+        HEAP_START(p) = n_heap;
+        HEAP_TOP(p) = n_htop;
+        HEAP_SIZE(p) = new_young_sz;
+        HEAP_END(p) = n_heap + new_young_sz;
+        ASSERT(OLD_HEAP(p) == NULL);
+        OLD_HEAP(p) = n_oheap;
+        OLD_HTOP(p) = n_ohtop;
+        OLD_HEND(p) = n_oheap + new_old_sz;
+    } else {
+        HEAP_START(p) = n_oheap;
+        HEAP_TOP(p) = n_ohtop;
+        HEAP_SIZE(p) = new_young_sz;
+        HEAP_END(p) = n_oheap + new_young_sz;
+    }
 
     GEN_GCS(p) = 0;
 

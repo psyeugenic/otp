@@ -1056,7 +1056,7 @@ literal_gc:
 
     FLAGS(c_p) |= F_NEED_FULLSWEEP;
 
-    *redsp += erts_garbage_collect_nobump(c_p, 0, c_p->arg_reg, c_p->arity, fcalls);
+    *redsp += erts_garbage_collect_nobump_opt(c_p, 0, c_p->arg_reg, c_p->arity, 1, fcalls);
 
     erts_garbage_collect_literals(c_p, (Eterm *) literals, lit_bsize, oh);
 

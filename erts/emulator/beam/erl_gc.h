@@ -139,7 +139,9 @@ Eterm erts_process_gc_info(struct process*, Uint *, Eterm **, Uint, Uint);
 
 void erts_gc_info(ErtsGCInfo *gcip);
 void erts_init_gc(void);
-int erts_garbage_collect_nobump(struct process*, int, Eterm*, int, int);
+#define erts_garbage_collect_nobump(P,Need,Objs,N,FCalls) \
+    erts_garbage_collect_nobump_opt(P,Need,Objs,N,0,FCalls)
+int erts_garbage_collect_nobump_opt(struct process*, int, Eterm*, int, int, int);
 void erts_garbage_collect(struct process*, int, Eterm*, int);
 void erts_garbage_collect_hibernate(struct process* p);
 Eterm erts_gc_after_bif_call_lhf(struct process* p, ErlHeapFragment *live_hf_end,
