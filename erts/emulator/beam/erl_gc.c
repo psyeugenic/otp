@@ -1542,9 +1542,10 @@ major_collection(Process* p, ErlHeapFragment *live_hf_end,
 
     /* should remove mbuf sizes from new_old_sz */
     new_old_sz = size_before;
-    new_old_sz = next_heap_size(p, new_old_sz, 0);
+    new_old_sz = next_heap_size(p, new_old_sz, 1);
 
-    new_young_sz = stack_size + young_gen_usage(p);
+    new_young_sz = stack_size + size_before;
+    //new_young_sz = stack_size + young_gen_usage(p);
     new_young_sz = next_heap_size(p, new_young_sz, 1);
 
     if (no_old_heap) {
