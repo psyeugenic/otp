@@ -120,6 +120,7 @@ copy_anno(Kdst, Ksrc) ->
 	       free=#{},			%Free variables
 	       ws=[]   :: [warning()],		%Warnings.
 	       guard_refc=0,			%> 0 means in guard
+               heuristics=score,
                type_heuristics=true}).          %Use type heuristics in pattern matching
 
 -spec module(cerl:c_module(), [compile:option()]) ->
@@ -128,7 +129,8 @@ copy_anno(Kdst, Ksrc) ->
 module(#c_module{anno=A,name=M,exports=Es,attrs=As,defs=Fs}, Options) ->
     Kas = attributes(As),
     Kes = map(fun (#c_var{name={_,_}=Fname}) -> Fname end, Es),
-    St0 = #kern{type_heuristics = not member(no_heuristics, Options)},
+    St0 = #kern{type_heuristics = not member(no_heuristics, Options),
+                heuristics = case member(depth, Options) of true -> depth; false -> score end},
     {Kfs,St} = mapfoldl(fun function/2, St0, Fs),
     {ok,#k_mdef{anno=A,name=M#c_literal.val,exports=Kes,attributes=Kas,
 		body=Kfs ++ St#kern.funs},lists:sort(St#kern.ws)}.
@@ -1473,10 +1475,10 @@ match_pre(Cs, Sub0, St) ->
 
 %% match([Var], [Clause], Default, State) -> {MatchExpr,State}.
 
-match(L0, Cs0, Def,  #kern{type_heuristics=true}=St) ->
+match(L0, Cs0, Def,  #kern{type_heuristics=true, heuristics=H}=St) ->
     %%ok = io:format("match  L: ~p~n"
     %%               "      Cs: ~p~n", [L0, Cs0]),
-    {L1,Cs1} = match_heuristic(L0, Cs0),
+    {L1,Cs1} = match_heuristic(H, L0, Cs0),
     match_patterns(L1, Cs1, Def, St);
 match(L, Cs, Def, St) ->
     match_patterns(L, Cs, Def, St).
@@ -1508,9 +1510,9 @@ match(L, Cs, Def, St) ->
 %%
 %% This is purely an optimization step.
 
-match_heuristic([_U1,_U2|_Us]=L0,Cs0) ->
+match_heuristic(H,[_U1,_U2|_Us]=L0,Cs0) ->
     try
-        Index = match_heuristic_rank_clauses(Cs0),
+        Index = match_heuristic_rank_clauses(H,Cs0),
         %% move highest scored column to first position
         L1 = move_nth_to_head(L0, Index),
         Cs1 = map(fun(#iclause{pats=Ps0}=C) ->
@@ -1522,7 +1524,7 @@ match_heuristic([_U1,_U2|_Us]=L0,Cs0) ->
         throw:not_moveable ->
             {L0, Cs0}
     end;
-match_heuristic(L,Cs) ->
+match_heuristic(_,L,Cs) ->
     {L, Cs}.
 
 move_nth_to_head(Is,1) -> Is;
@@ -1531,66 +1533,65 @@ move_nth_to_head(Is,Ix) ->
     {L,[I|R]} = lists:split(Ix - 1, Is),
     [I|L] ++ R.
 
-match_heuristic_rank_clauses([#iclause{pats=Ps0}=C0|_]=Cs) ->
-    F = fun(P, OnlyVars) ->
+match_heuristic_rank_clauses(H,[#iclause{pats=Ps0}=C0|_]=Cs) ->
+    F = fun(P) ->
                 {Type,_} = heuristic_con_type_val(P,C0),
-                IsVar = k_var =:= Type,
-                R = #{rank   => 0,  depth  => 0,
-                      score  => 0,  types  => [],
-                      values => [], k_var  => IsVar},
-                {R, OnlyVars andalso IsVar}
+                #{rank   => 0,  ptype  => Type =:= k_var,
+                  score  => 0,  types  => [], depth => 0, is_var => Type =:= k_var,
+                  values => [], splits => 1}
         end,
-    case mapfoldl(F, true, Ps0) of
-        {_, true} -> 1;
-        {Rs0, false} ->
-            Rs1 = foldl(fun (#iclause{pats=Ps}=C, Rs) ->
-                                match_heuristic_rank_clause(Ps, Rs, C)
-                        end, Rs0, Cs),
-            Rs2 = map(fun (#{depth:=0}=R) -> R;
-                          (#{depth:=D, types:=Ts0, values:=Vs0, rank:=Rank}=R) ->
-                              Ts = lists:usort(Ts0),
-                              Vs = lists:usort(Vs0),
-                              Nt = length(Ts),
-                              Nv = length(Vs),
-                              true = Nt > 0, %% assert
-                              true = Nv > 0, %% assert
+    Rs0 = map(F, Ps0),
+    Rs1 = foldl(fun (#iclause{pats=Ps}=C, Rs) ->
+                        match_heuristic_rank_clause(Ps, Rs, C)
+                end, Rs0, Cs),
+    Rs2 = map(fun (#{types:=Ts0, values:=Vs0, splits := S, depth := D, rank:=Rank}=R) ->
+                      Ts = lists:usort(Ts0),
+                      Vs = lists:usort(Vs0),
+                      Nt = length(Ts),
+                      Nv = length(Vs),
+                      true = Nt > 0, %% assert
+                      true = Nv > 0, %% assert
+                      true = S  > 0, %% assert
 
-                              % We want,
-                              % 1) As deep column as possible
-                              % 2) As few different types as possible
-                              % 3) As good types as possible
-                              % 4) As many different values as possible
-                              %    or a single value.
+                      % We want,
+                      % 1) As deep column as possible
+                      % 2) As few different types as possible
+                      % 3) As good types as possible
+                      % 4) As many different values as possible
+                      %    or a single value.
 
-                              Vr = if Nv =:= 1 -> 100000; true -> Nv end,
-                              Score = {D, 100/Nt, Rank, Vr},
+                      Vr = if Nv =:= 1 -> 100000; true -> Nv end,
+                      %Score = {100/S, 100/Nt, Vr, Rank},
+                      Score = case H of
+                                  depth -> if D =:= 0 -> 100000; true -> 100 / D end;
+                                  _ -> {100/(D+1), 100/Nt, Vr, Rank}
+                              end,
 
-                              R#{types  := Ts,
-                                 values := Nv,
-                                 score  := Score }
-                      end, Rs1),
-            {Index,_,_} = foldl(fun (#{score := Sc}, {Ix,Hi,I}) ->
-                                        if Sc > Hi -> {I, Sc,I+1};
-                                           true    -> {Ix,Hi,I+1}
-                                        end
-                                end, {1,0,1}, Rs2),
-            %% io:format("ranks [~3w]: ~p~n", [Index,Rs2]),
-            Index
-    end.
+                      R#{types  := Ts,
+                         values := Nv,
+                         score  := Score}
+              end, Rs1),
+    %io:format("Rs: ~p~n", [Rs2]),
+    {Index,_,_} = foldl(fun (#{score := Sc}, {Ix,Hi,I}) ->
+                                if Sc > Hi -> {I, Sc,I+1};
+                                   true    -> {Ix,Hi,I+1}
+                                end
+                        end, {1,0,1}, Rs2),
+    %% io:format("ranks [~3w]: ~p~n", [Index,Rs2]),
+    Index.
 
 match_heuristic_rank_clause([],[],_) -> [];
-match_heuristic_rank_clause([_|Args],[#{k_var := true}=R|Rs], C) ->
-    [R|match_heuristic_rank_clause(Args, Rs, C)];
-match_heuristic_rank_clause([Arg|Args], [#{k_var := false, rank := Rank, depth := D,
-                                           types := Ts, values := Vs}=R0|Rs], C) ->
+match_heuristic_rank_clause([Arg|Args], [#{ptype := Ptype, splits := S, is_var := IsVar, depth := D,
+                                           rank := Rank, types := Ts, values := Vs}=R0|Rs], C) ->
     {Type,Val} = heuristic_con_type_val(Arg, C),
-    R = case Type of
-            k_var -> R0#{k_var := true};
-            _ -> R0#{rank   := heuristic_rank_con_type(Type) + Rank,
-                     depth  := D + 1,
-                     types  := [Type|Ts],
-                     values := [Val|Vs]}
-        end,
+    Ctype = Type =:= k_var,
+    R = R0#{rank   := heuristic_rank_con_type(Type) + Rank,
+            ptype  := Ctype,
+            is_var := Ctype orelse IsVar,
+            depth  := if not (Ctype orelse IsVar) -> D + 1;  true -> D end,
+            splits := if Ctype =/= Ptype -> S + 1; true -> S end,
+            types  := [Type|Ts],
+            values := [Val|Vs]},
     [R|match_heuristic_rank_clause(Args, Rs, C)].
 
 heuristic_con_type_val(Arg,C) ->
@@ -1609,6 +1610,7 @@ heuristic_con_type_val(Arg,C) ->
 
 heuristic_rank_con_type(Type) ->
     case Type of
+        k_var   -> 101;
         %% immediates are preferable
         k_int   -> 100;
         k_atom  -> 90;
